@@ -1,0 +1,16 @@
+{
+  "name": "jdwx/trie",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "JDWX\\Trie\\": "src/"
+        },
+      "require-dev": {
+        "jetbrains/phpstorm-attributes": "^1.0",
+        "phpunit/phpunit": "^10"
+      },
+        "require": {
+            "php": ">=8.3.0"
+        }
+    }
+}
