@@ -7,29 +7,42 @@ declare( strict_types = 1 );
 namespace JDWX\Trie;
 
 
+use InvalidArgumentException;
+use LogicException;
+
+
+/**
+ * TrieNode is the base class for the radix tree implementation. It provides
+ * only the basic functionality for node operations. I.e., methods that
+ * operate on the node itself or its relationships to its parent or
+ * children.
+ *
+ * It has two types of children: constant and variable nodes.
+ */
 class TrieNode {
 
 
     /** @var array<string, TrieNode> */
-    public array $rChildren = [];
+    public array $rConstants = [];
 
     /** @var array<string, TrieNode> */
-    public array $rVariableChildren = [];
+    public array $rVariables = [];
 
 
-    public function __construct( public mixed $xValue = null ) {}
+    final public function __construct( public mixed $xValue = null, public ?TrieNode $parent = null ) { }
 
 
-    public static function asNode( mixed $i_xValue ) : TrieNode {
+    public static function asNode( mixed $i_xValue, ?TrieNode $parent = null ) : static {
         if ( $i_xValue instanceof TrieNode ) {
+            $i_xValue->parent = $parent;
             return $i_xValue;
         }
-        return new TrieNode( $i_xValue );
+        return new static( $i_xValue, $parent );
     }
 
 
     public static function asNotNode( mixed $i_xValue ) : mixed {
-        if ( $i_xValue instanceof TrieNode ) {
+        if ( $i_xValue instanceof static ) {
             return $i_xValue->xValue;
         }
         return $i_xValue;
@@ -76,141 +89,248 @@ class TrieNode {
     }
 
 
-    public function add( string $i_stPath, mixed $i_xValue, bool $i_bAllowVariables = false ) : TrieNode {
-        return $this->addInner( $i_stPath, $i_xValue, $i_bAllowVariables, false );
+    public static function matchPrefix( array $i_rOptions, string $i_stKey ) : array {
+        foreach ( $i_rOptions as $stNodePath => $tn ) {
+            $stPrefix = static::commonPrefix( $stNodePath, $i_stKey );
+            if ( '' === $stPrefix ) {
+                continue;
+            }
+            return [ $stPrefix, $stNodePath, substr( $i_stKey, strlen( $stPrefix ) ) ];
+        }
+        return [ null, null, null ];
+
     }
 
 
-    public function addInner( string $i_stPath, mixed $i_xValue, bool $i_bAllowVariables,
-                              bool   $i_bAllowOverwrite ) : TrieNode {
-        # If the path is empty, you are adding a value to the current node.
-        if ( '' === $i_stPath ) {
-            if ( null === $this->xValue || $i_bAllowOverwrite ) {
-                # We can overwrite the value.
-                $this->xValue = self::asNotNode( $i_xValue );
-                return $this;
-            }
-
-            # Otherwise, this is a collision, and keys must be unique.
-            throw new \InvalidArgumentException( 'Key already exists.' );
-        }
-
-        if ( $i_bAllowVariables ) {
-            if ( str_starts_with( $i_stPath, '$' ) ) {
-                # This is a variable path.
-                [ $nstVarName, $stPath ] = self::extractVariableName( $i_stPath );
-                if ( is_string( $nstVarName ) && is_string( $stPath ) ) {
-                    return $this->addVariableChild( $nstVarName, $stPath, $i_xValue, $i_bAllowOverwrite );
-                }
-            }
-
-            if ( str_contains( $i_stPath, '$' ) ) {
-                # There may be a variable later in the path, but it is not at the start.
-                $uPos = strpos( $i_stPath, '$' );
-                $stPathBeforeVariable = substr( $i_stPath, 0, $uPos );
-                $stPathAfterVariable = substr( $i_stPath, $uPos );
-                [ $stVarName, $stPathAfterVariable ] = self::extractVariableName( $stPathAfterVariable );
-                if ( is_string( $stVarName ) && is_string( $stPathAfterVariable ) ) {
-                    # We have a variable name.
-                    $tnChild = $this->addInner( $stPathBeforeVariable, null, false, $i_bAllowOverwrite );
-                    return $tnChild->addVariableChild( $stVarName, $stPathAfterVariable, $i_xValue, $i_bAllowOverwrite );
-                }
-                # It wasn't actually a variable name, so continue.
-            }
-        }
-
-        [ $stPrefix, $stMatch ] = $this->matchPrefix( $i_stPath );
+    public function addConstant( string $i_stKey, mixed $i_xValue, bool $i_bAllowOverwrite = false ) : TrieNode {
+        [ $stPrefix, $stKey, $stRest ] = $this->matchConstantPrefix( $i_stKey );
         if ( ! is_string( $stPrefix ) ) {
-            # No match, so we can add the new child.
-            $this->rChildren[ $i_stPath ] = self::asNode( $i_xValue );
-            return $this->rChildren[ $i_stPath ];
-        }
-        assert( is_string( $stMatch ) );
-
-        # There is a prefix match. There are three cases to deal with:
-        # 1. A common prefix (e.g., "foobar" and "fooqux")
-        # 2. A prefix match with the existing child (e.g., "foo" and "foobar")
-        # 3. A prefix match with the new child (e.g., "foobar" and "foo")
-
-        # Case 1: A common prefix.
-        if ( $stMatch !== $stPrefix && $stPrefix !== $i_stPath ) {
-            # Create a new child node for the common prefix.
-            $tnSplit = new TrieNode();
-            $this->rChildren[ $stPrefix ] = $tnSplit;
-            $tnSplit->addInner( substr( $stMatch, strlen( $stPrefix ) ), $this->rChildren[ $stMatch ],
-                $i_bAllowVariables, $i_bAllowOverwrite );
-            unset( $this->rChildren[ $stMatch ] );
-            return $tnSplit->addInner( substr( $i_stPath, strlen( $stPrefix ) ), self::asNode( $i_xValue ),
-                $i_bAllowVariables, $i_bAllowOverwrite );
+            # No match. Add the new constant directly.
+            return $this->linkConstant( $i_stKey, $i_xValue );
         }
 
-        # Case 2: Existing child is a prefix match.
-        if ( $stMatch === $stPrefix ) {
-            # Add the new child to the existing child.
-            $i_stPath = substr( $i_stPath, strlen( $stPrefix ) );
-            return $this->rChildren[ $stMatch ]->addInner( $i_stPath, $i_xValue, $i_bAllowVariables,
-                $i_bAllowOverwrite );
+        # Exact match. We can (try to) set the existing value.
+        if ( $i_stKey === $stKey ) {
+            $tnc = $this->constant( $stKey );
+            $tnc->set( $i_xValue, $i_bAllowOverwrite );
+            return $tnc;
         }
 
-        # Case 3: New child is a prefix match.
-        assert( $stPrefix === $i_stPath );
-        $tnChild = $this->rChildren[ $stMatch ];
-        unset( $this->rChildren[ $stMatch ] );
-        $tnNew = $this->addInner( $stPrefix, $i_xValue, $i_bAllowVariables, $i_bAllowOverwrite );
-        $tnNew->addInner( substr( $stMatch, strlen( $stPrefix ) ), $tnChild, $i_bAllowVariables, $i_bAllowOverwrite );
-        return $tnNew;
+        # There is a prefix match. We need to split the constant.
+        return $this->splitConstant( $stPrefix, $stKey, $stRest, $i_xValue );
     }
 
 
-    public function addVariableChild( string $i_stVarName, string $i_stPath, mixed $i_xValue,
-                                      bool   $i_bAllowOverwrite ) : TrieNode {
-        if ( isset( $this->rVariableChildren[ $i_stVarName ] ) ) {
-            # We already have a variable child with this name.
-            return $this->rVariableChildren[ $i_stVarName ]->addInner( $i_stPath, $i_xValue,
-                true, $i_bAllowOverwrite );
+    public function addVariable( string $i_stKey, mixed $i_xValue, bool $i_bAllowOverwrite = false ) : TrieNode {
+        if ( isset( $this->rVariables[ $i_stKey ] ) &&
+            ! is_null( $this->rVariables[ $i_stKey ]->xValue ) && ! $i_bAllowOverwrite ) {
+            throw new InvalidArgumentException( "Variable node at '{$i_stKey}' already has a value" );
         }
-        # Create a new child node for the variable.
-        $tnChild = new TrieNode();
-        $this->rVariableChildren[ $i_stVarName ] = $tnChild;
-        return $tnChild->addInner( $i_stPath, $i_xValue, true, $i_bAllowOverwrite );
+        if ( isset( $this->rVariables[ $i_stKey ] ) ) {
+            # We have a variable node already, so we can set the value.
+            $this->rVariables[ $i_stKey ]->xValue = static::asNotNode( $i_xValue );
+            return $this->rVariables[ $i_stKey ];
+        }
+        # We don't have a matching variable node, so we need to create one.
+        $tnv = new static( static::asNotNode( $i_xValue ), $this );
+        $this->rVariables[ $i_stKey ] = $tnv;
+        return $tnv;
     }
 
 
-    public function get( string &$io_stPath ) : TrieNode {
-        $tnChild = $this->getChild( $io_stPath );
-        if ( null === $tnChild ) {
-            return $this;
-        }
-        return $tnChild->get( $io_stPath );
+    public function constant( string $i_stKey ) : ?static {
+        return $this->rConstants[ $i_stKey ] ?? null;
     }
 
 
-    public function getChild( string &$io_stPath ) : ?TrieNode {
-        foreach ( $this->rChildren as $stNodePath => $tnChild ) {
+    public function findParentKey() : ?string {
+        if ( ! $this->parent instanceof TrieNode ) {
+            return null;
+        }
+        foreach ( $this->parent->rConstants as $stKey => $tn ) {
+            if ( $tn === $this ) {
+                return $stKey;
+            }
+        }
+        foreach ( $this->parent->rVariables as $stKey => $tn ) {
+            if ( $tn === $this ) {
+                return $stKey;
+            }
+        }
+        throw new LogicException( 'This should be unreachable!' );
+    }
+
+
+    public function findPath() : string {
+        if ( ! $this->parent instanceof TrieNode ) {
+            return '';
+        }
+        return $this->parent->findPath() . $this->findParentKey();
+    }
+
+
+    public function getConstant( string &$io_stPath ) : ?static {
+        foreach ( $this->rConstants as $stNodePath => $tnc ) {
             if ( str_starts_with( $io_stPath, $stNodePath ) ) {
+                if ( $tnc->isDead() ) {
+                    # This is a dead node. We can prune it.
+                    unset( $this->rConstants[ $stNodePath ] );
+                    continue;
+                }
                 $io_stPath = substr( $io_stPath, strlen( $stNodePath ) );
-                return $tnChild;
+                return $tnc;
             }
         }
         return null;
     }
 
 
-    /** @return list<?string> */
-    public function matchPrefix( string $i_stPath ) : array {
-        foreach ( $this->rChildren as $stNodePath => $tnChild ) {
-            $stPrefix = self::commonPrefix( $stNodePath, $i_stPath );
-            if ( '' === $stPrefix ) {
-                continue;
-            }
-            return [ $stPrefix, $stNodePath ];
-        }
-        return [ null, null ];
+    public function isDead() : bool {
+        return is_null( $this->xValue ) && empty( $this->rConstants ) && empty( $this->rVariables );
     }
 
 
-    public function set( string $i_stPath, mixed $i_xValue, bool $i_bAllowVariables = false ) : TrieNode {
-        return $this->addInner( $i_stPath, $i_xValue, $i_bAllowVariables, true );
+    public function linkConstant( string $i_stKey, mixed $tnc ) : static {
+        if ( isset( $this->rConstants[ $i_stKey ] ) ) {
+            throw new InvalidArgumentException( "Constant node at '{$i_stKey}' already exists" );
+        }
+        if ( ! $tnc instanceof TrieNode ) {
+            $tnc = new static( $tnc, $this );
+        } else {
+            $tnc->parent = $this;
+        }
+        return $this->rConstants[ $i_stKey ] = $tnc;
+    }
+
+
+    public function linkVariable( string $i_stVarName, mixed $tnv ) : static {
+        if ( isset( $this->rVariables[ $i_stVarName ] ) ) {
+            throw new InvalidArgumentException( "Variable node at '{$i_stVarName}' already exists" );
+        }
+        if ( ! $tnv instanceof TrieNode ) {
+            $tnv = new static( $tnv, $this );
+        } else {
+            $tnv->parent = $this;
+        }
+        return $this->rVariables[ $i_stVarName ] = $tnv;
+    }
+
+
+    /**
+     * @return list<?string> Returns an array containing the common prefix,
+     *                       the node path, and the remaining path,
+     *                       or null if no match is found.
+     */
+    public function matchConstantPrefix( string $i_stPath ) : array {
+        return static::matchPrefix( $this->rConstants, $i_stPath );
+    }
+
+
+    /**
+     * @param string $i_stPath
+     * @return list<?string> Returns an array containing the variable name
+     *                       (or null if no match is found) and the
+     *                       remaining path.
+     */
+    public function matchVariablePrefix( string $i_stPath ) : array {
+        [ $stVarName, $stRest ] = static::extractVariableName( $i_stPath );
+        if ( is_null( $stVarName ) ) {
+            return [ null, null ];
+        }
+        if ( ! isset( $this->rVariables[ $stVarName ] ) ) {
+            return [ null, null ];
+        }
+        return [ $stVarName, $stRest ];
+    }
+
+
+    public function prune() : void {
+        $stKey = $this->findParentKey();
+        if ( is_null( $stKey ) ) {
+            return;
+        }
+        if ( str_starts_with( $stKey, '$' ) ) {
+            # This is a variable node.
+            unset( $this->parent->rVariables[ $stKey ] );
+        } else {
+            # This is a constant node.
+            unset( $this->parent->rConstants[ $stKey ] );
+        }
+        $this->parent = null;
+    }
+
+
+    public function set( mixed $i_xValue, bool $i_bAllowOverwrite = false ) : void {
+        if ( $i_bAllowOverwrite || is_null( $this->xValue ) ) {
+            $this->xValue = static::asNotNode( $i_xValue );
+            return;
+        }
+        throw new InvalidArgumentException( 'Node already has a value' );
+    }
+
+
+    /**
+     * @param string $i_stPrefix
+     * @param string $i_stOldKey
+     * @param string $i_stNewRest The new key to be added after the prefix.
+     * @param mixed $i_xValue The new value to be associated with the new key.
+     * @return static Returns the child node associated with the new value.
+     *
+     * This method splits a constant link (e.g., "FooBar") to add a new
+     * constant edge that shares a prefix (e.g., "FooQux") so the result
+     * is a constant edge ("Foo") to a new node with two constant edges,
+     * "Bar" and "Qux" to the old and new nodes respectively.
+     *
+     * This also handles the case where either the old key or the new
+     * key matches the prefix.
+     */
+    public function splitConstant( string $i_stPrefix, string $i_stOldKey, string $i_stNewRest,
+                                   mixed  $i_xNewValue ) : static {
+
+        # There are three cases to consider:
+        # 1. The old key is a prefix of the new key. (E.g., "FooBar" for "Foo")
+        # 2. There is a common prefix that doesn't match either key. (E.g., "Foo" for "FooBar" and "FooQux").
+        # 3. The new key is a prefix of the old key. (E.g., "Foo" for "FooBar")
+
+        $stOldRest = substr( $i_stOldKey, strlen( $i_stPrefix ) );
+        $tncOldConstant = $this->rConstants[ $i_stOldKey ];
+        $i_xNewValue = static::asNotNode( $i_xNewValue );
+
+        # Case 1: Old key is a prefix of the new key.
+        # It's debatable whether this can occur, because whatever search
+        # you performed should have returned the existing matching child
+        # node rather than this one. But it may be useful to be able to
+        # split unconditionally for some tree grooming operations.
+        if ( '' === $stOldRest && '' !== $i_stNewRest ) {
+            return $tncOldConstant->addConstant( $i_stNewRest, $i_xNewValue );
+        }
+
+        # No matter what, we need to remove the old key from the list of
+        # constants, because we are going to add a new edge.
+        $tncOldConstant->prune();
+
+        # Case 2: New key is a prefix of the old key.
+        if ( '' === $i_stNewRest ) {
+            $tncNewConstant = $this->linkConstant( $i_stPrefix, $i_xNewValue );
+            $tncNewConstant->linkConstant( $stOldRest, $tncOldConstant );
+            return $tncNewConstant;
+        }
+
+        # Case 3: Common prefix.
+        $tncSplit = $this->linkConstant( $i_stPrefix, null );
+        $tncSplit->linkConstant( $stOldRest, $tncOldConstant );
+        return $tncSplit->linkConstant( $i_stNewRest, $i_xNewValue );
+
+    }
+
+
+    public function unset() : void {
+        $this->xValue = null;
+    }
+
+
+    public function variable( string $i_stPath ) : ?static {
+        return $this->rVariables[ $i_stPath ] ?? null;
     }
 
 

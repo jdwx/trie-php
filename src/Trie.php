@@ -7,10 +7,15 @@ declare( strict_types = 1 );
 namespace JDWX\Trie;
 
 
+use ArrayAccess;
+use InvalidArgumentException;
+use RuntimeException;
+
+
 /**
- * @implements \ArrayAccess<string, mixed>
+ * @implements ArrayAccess<string, mixed>
  */
-class Trie implements \ArrayAccess {
+class Trie implements ArrayAccess {
 
 
     protected const string VARIABLE_VALUE_REGEX = '/^([-a-zA-Z0-9_.]+)(.*)$/';
@@ -73,7 +78,7 @@ class Trie implements \ArrayAccess {
     public function offsetExists( mixed $offset ) : bool {
         /** @phpstan-ignore-next-line */
         if ( ! is_string( $offset ) ) {
-            throw new \InvalidArgumentException( 'Trie keys must be strings.' );
+            throw new InvalidArgumentException( 'Trie keys must be strings.' );
         }
         return $this->has( $offset );
     }
@@ -87,7 +92,7 @@ class Trie implements \ArrayAccess {
     public function offsetGet( mixed $offset ) : mixed {
         /** @phpstan-ignore-next-line */
         if ( ! is_string( $offset ) ) {
-            throw new \InvalidArgumentException( 'Trie keys must be strings.' );
+            throw new InvalidArgumentException( 'Trie keys must be strings.' );
         }
         return $this->get( $offset );
     }
@@ -101,7 +106,7 @@ class Trie implements \ArrayAccess {
     public function offsetSet( mixed $offset, mixed $value ) : void {
         /** @phpstan-ignore-next-line */
         if ( ! is_string( $offset ) ) {
-            throw new \InvalidArgumentException( 'Trie keys must be strings.' );
+            throw new InvalidArgumentException( 'Trie keys must be strings.' );
         }
         $this->set( $offset, $value );
     }
@@ -114,7 +119,7 @@ class Trie implements \ArrayAccess {
     public function offsetUnset( mixed $offset ) : void {
         /** @phpstan-ignore-next-line */
         if ( ! is_string( $offset ) ) {
-            throw new \InvalidArgumentException( 'Trie keys must be strings.' );
+            throw new InvalidArgumentException( 'Trie keys must be strings.' );
         }
         $this->unset( $offset );
     }
@@ -131,8 +136,8 @@ class Trie implements \ArrayAccess {
         if ( $node instanceof TrieNode ) {
             $node->xValue = null;
             if ( $i_bPrune ) {
-                $node->rChildren = [];
-                $node->rVariableChildren = [];
+                $node->rConstants = [];
+                $node->rVariables = [];
             }
         }
     }
@@ -145,7 +150,7 @@ class Trie implements \ArrayAccess {
     protected function getInner( TrieNode $i_node, string $i_stPath, ?array &$o_nrVariables,
                                  bool     $i_bDecodeVariables ) : ?TrieNode {
         $stPath = $i_stPath;
-        $nodeMatch = $i_node->get( $stPath );
+        $nodeMatch = $i_node->getClosestConstant( $stPath );
         if ( '' === $stPath ) {
             return $nodeMatch;
         }
@@ -169,7 +174,7 @@ class Trie implements \ArrayAccess {
                 return $nodeMatch->rVariableChildren[ $stVarName ];
             }
             $stKeys = join( ', ', array_keys( $nodeMatch->rVariableChildren ) );
-            throw new \RuntimeException( "Variable substitution is ambiguous with: {$stKeys}" );
+            throw new RuntimeException( "Variable substitution is ambiguous with: {$stKeys}" );
         }
 
         # There's more to the path after the variable.
@@ -191,7 +196,7 @@ class Trie implements \ArrayAccess {
             return $rMatches[ 0 ];
         }
         $stKeys = join( ', ', array_keys( $rMatches ) );
-        throw new \RuntimeException( "Variable substitution is ambiguous on '{$stPath}' with: {$stKeys}" );
+        throw new RuntimeException( "Variable substitution is ambiguous on '{$stPath}' with: {$stKeys}" );
     }
 
 

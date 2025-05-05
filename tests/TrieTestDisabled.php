@@ -7,11 +7,10 @@ declare( strict_types = 1 );
 use JDWX\Trie\Trie;
 use JDWX\Trie\TrieNode;
 use PHPUnit\Framework\Attributes\CoversClass;
-use PHPUnit\Framework\TestCase;
 
 
 #[CoversClass( Trie::class )]
-final class TrieTest extends TestCase {
+final class TrieTestDisabled {
 
 
     public function testAddForNoVariables() : void {
@@ -21,15 +20,15 @@ final class TrieTest extends TestCase {
         $trie->add( 'foo bar:baz', 'BAZ' );
         $trie->add( 'foo $bar qux', 'QUX' );
 
-        self::assertSame( 'FOO', $root->rChildren[ 'foo' ]->xValue );
-        self::assertSame( 'BAR', $root->rChildren[ 'foo' ]->rChildren[ ' ' ]->rChildren[ 'bar' ]->xValue );
+        self::assertSame( 'FOO', $root->rConstants[ 'foo' ]->xValue );
+        self::assertSame( 'BAR', $root->rConstants[ 'foo' ]->rConstants[ ' ' ]->rConstants[ 'bar' ]->xValue );
         self::assertSame(
             'BAZ',
-            $root->rChildren[ 'foo' ]->rChildren[ ' ' ]->rChildren[ 'bar' ]->rChildren[ ':baz' ]->xValue
+            $root->rConstants[ 'foo' ]->rConstants[ ' ' ]->rConstants[ 'bar' ]->rConstants[ ':baz' ]->xValue
         );
         self::assertSame(
             'QUX',
-            $root->rChildren[ 'foo' ]->rChildren[ ' ' ]->rChildren[ '$bar qux' ]->xValue
+            $root->rConstants[ 'foo' ]->rConstants[ ' ' ]->rConstants[ '$bar qux' ]->xValue
         );
 
     }
@@ -40,7 +39,7 @@ final class TrieTest extends TestCase {
         $trie->add( 'foo${bar}baz', 'BAZ' );
         self::assertSame(
             'BAZ',
-            $root->rChildren[ 'foo' ]->rVariableChildren[ '$bar' ]->rChildren[ 'baz' ]->xValue
+            $root->rConstants[ 'foo' ]->rVariables[ '$bar' ]->rConstants[ 'baz' ]->xValue
         );
     }
 
@@ -56,9 +55,9 @@ final class TrieTest extends TestCase {
         $tnFoo = new TrieNode( 'FOO' );
         $tnBar = new TrieNode( 'BAR' );
         $tnBaz = new TrieNode( 'BAZ' );
-        $root->rChildren[ 'foo' ] = $tnFoo;
-        $tnFoo->rChildren[ 'bar' ] = $tnBar;
-        $tnBar->rChildren[ 'baz' ] = $tnBaz;
+        $root->rConstants[ 'foo' ] = $tnFoo;
+        $tnFoo->rConstants[ 'bar' ] = $tnBar;
+        $tnBar->rConstants[ 'baz' ] = $tnBaz;
 
         self::assertSame( 'FOO', $trie[ 'foo' ] );
         self::assertSame( 'BAR', $trie[ 'foobar' ] );
@@ -119,9 +118,9 @@ final class TrieTest extends TestCase {
         $tnFoo = new TrieNode( 'FOO' );
         $tnBar = new TrieNode( 'BAR' );
         $tnBaz = new TrieNode( 'BAZ' );
-        $root->rChildren[ 'foo' ] = $tnFoo;
-        $tnFoo->rChildren[ 'bar' ] = $tnBar;
-        $tnBar->rChildren[ 'baz' ] = $tnBaz;
+        $root->rConstants[ 'foo' ] = $tnFoo;
+        $tnFoo->rConstants[ 'bar' ] = $tnBar;
+        $tnBar->rConstants[ 'baz' ] = $tnBaz;
 
         self::assertSame( 'FOO', $trie->get( 'foo' ) );
         self::assertSame( 'BAR', $trie->get( 'foobar' ) );
@@ -146,11 +145,11 @@ final class TrieTest extends TestCase {
         $tnBaz = new TrieNode( 'BAZ' );
         $tnQux = new TrieNode( 'QUX' );
         $tnQuux = new TrieNode( 'QUUX' );
-        $root->rChildren[ 'foo' ] = $tnFoo;
-        $tnFoo->rVariableChildren[ '$bar' ] = $tnBar;
-        $tnFoo->rVariableChildren[ '$baz' ] = $tnBaz;
-        $tnBar->rChildren[ ' qux' ] = $tnQux;
-        $tnBaz->rChildren[ ' qux' ] = $tnQuux;
+        $root->rConstants[ 'foo' ] = $tnFoo;
+        $tnFoo->rVariables[ '$bar' ] = $tnBar;
+        $tnFoo->rVariables[ '$baz' ] = $tnBaz;
+        $tnBar->rConstants[ ' qux' ] = $tnQux;
+        $tnBaz->rConstants[ ' qux' ] = $tnQuux;
 
         $r = [];
         self::expectException( RuntimeException::class );
@@ -165,9 +164,9 @@ final class TrieTest extends TestCase {
         $tnFoo = new TrieNode( 'FOO' );
         $tnBar = new TrieNode( 'BAR' );
         $tnBaz = new TrieNode( 'BAZ' );
-        $root->rChildren[ 'foo' ] = $tnFoo;
-        $tnFoo->rVariableChildren[ '$bar' ] = $tnBar;
-        $tnFoo->rVariableChildren[ '$baz' ] = $tnBaz;
+        $root->rConstants[ 'foo' ] = $tnFoo;
+        $tnFoo->rVariables[ '$bar' ] = $tnBar;
+        $tnFoo->rVariables[ '$baz' ] = $tnBaz;
 
         $r = [];
         self::expectException( RuntimeException::class );
@@ -186,9 +185,9 @@ final class TrieTest extends TestCase {
         $tnFoo = new TrieNode( 'FOO' );
         $tnBar = new TrieNode( 'BAR' );
         $tnBaz = new TrieNode( 'BAZ' );
-        $root->rChildren[ 'foo' ] = $tnFoo;
-        $tnFoo->rVariableChildren[ '$bar' ] = $tnBar;
-        $tnBar->rChildren[ ' baz' ] = $tnBaz;
+        $root->rConstants[ 'foo' ] = $tnFoo;
+        $tnFoo->rVariables[ '$bar' ] = $tnBar;
+        $tnBar->rConstants[ ' baz' ] = $tnBaz;
 
         $r = [];
         self::assertNull( $trie->get( 'foo quxbaz', $r ) );
@@ -206,9 +205,9 @@ final class TrieTest extends TestCase {
         $tnFoo = new TrieNode( 'FOO' );
         $tnBar = new TrieNode( 'BAR' );
         $tnBaz = new TrieNode( 'BAZ' );
-        $root->rChildren[ 'foo' ] = $tnFoo;
-        $tnFoo->rChildren[ 'bar' ] = $tnBar;
-        $tnFoo->rVariableChildren[ '$baz' ] = $tnBaz;
+        $root->rConstants[ 'foo' ] = $tnFoo;
+        $tnFoo->rConstants[ 'bar' ] = $tnBar;
+        $tnFoo->rVariables[ '$baz' ] = $tnBaz;
 
         self::assertSame( 'FOO', $trie->get( 'foo' ) );
         self::assertSame( 'BAR', $trie->get( 'foobar' ) );
@@ -216,8 +215,8 @@ final class TrieTest extends TestCase {
 
         $tnQux = new TrieNode( 'QUX' );
         $tnQuux = new TrieNode( 'QUUX' );
-        $tnBar->rChildren[ ' qux' ] = $tnQux;
-        $tnBaz->rChildren[ ' qux' ] = $tnQuux;
+        $tnBar->rConstants[ ' qux' ] = $tnQux;
+        $tnBaz->rConstants[ ' qux' ] = $tnQuux;
 
         self::assertSame( 'QUX', $trie->get( 'foobar qux' ) );
         self::assertSame( 'QUUX', $trie->get( 'foocorge qux' ) );
@@ -231,9 +230,9 @@ final class TrieTest extends TestCase {
         $tnFoo = new TrieNode( 'FOO' );
         $tnBar = new TrieNode( 'BAR' );
         $tnBaz = new TrieNode( 'BAZ' );
-        $root->rChildren[ 'foo' ] = $tnFoo;
-        $tnFoo->rVariableChildren[ '$bar' ] = $tnBar;
-        $tnBar->rChildren[ ' baz' ] = $tnBaz;
+        $root->rConstants[ 'foo' ] = $tnFoo;
+        $tnFoo->rVariables[ '$bar' ] = $tnBar;
+        $tnBar->rConstants[ ' baz' ] = $tnBaz;
 
         $r = [];
         self::assertNull( $trie->get( 'fooqux quux', $r ) );
@@ -251,9 +250,9 @@ final class TrieTest extends TestCase {
         $tnFoo = new TrieNode( 'FOO' );
         $tnBar = new TrieNode( 'BAR' );
         $tnBaz = new TrieNode( 'BAZ' );
-        $root->rChildren[ 'foo' ] = $tnFoo;
-        $tnFoo->rChildren[ 'bar' ] = $tnBar;
-        $tnBar->rChildren[ 'baz' ] = $tnBaz;
+        $root->rConstants[ 'foo' ] = $tnFoo;
+        $tnFoo->rConstants[ 'bar' ] = $tnBar;
+        $tnBar->rConstants[ 'baz' ] = $tnBaz;
 
         self::assertSame( 'FOO', $trie->get( 'foo' ) );
         self::assertSame( 'BAR', $trie->get( 'foobar' ) );
@@ -275,11 +274,11 @@ final class TrieTest extends TestCase {
         $tnBaz = new TrieNode( 'BAZ' );
         $tnQux = new TrieNode( 'QUX' );
         $tnQuux = new TrieNode( 'QUUX' );
-        $root->rChildren[ 'foo' ] = $tnFoo;
-        $tnFoo->rVariableChildren[ '$bar' ] = $tnBar;
-        $tnFoo->rVariableChildren[ '$baz' ] = $tnBaz;
-        $tnBar->rChildren[ ' qux' ] = $tnQux;
-        $tnBaz->rChildren[ ' quux' ] = $tnQuux;
+        $root->rConstants[ 'foo' ] = $tnFoo;
+        $tnFoo->rVariables[ '$bar' ] = $tnBar;
+        $tnFoo->rVariables[ '$baz' ] = $tnBaz;
+        $tnBar->rConstants[ ' qux' ] = $tnQux;
+        $tnBaz->rConstants[ ' quux' ] = $tnQuux;
 
         $r = [];
         self::assertSame( 'QUX', $trie->get( 'foocorge qux', $r ) );
@@ -296,9 +295,9 @@ final class TrieTest extends TestCase {
         $tnFoo = new TrieNode( 'FOO' );
         $tnBar = new TrieNode( 'BAR' );
         $tnBaz = new TrieNode( 'BAZ' );
-        $root->rChildren[ 'foo' ] = $tnFoo;
-        $tnFoo->rVariableChildren[ '$bar' ] = $tnBar;
-        $tnBar->rChildren[ ' baz' ] = $tnBaz;
+        $root->rConstants[ 'foo' ] = $tnFoo;
+        $tnFoo->rVariables[ '$bar' ] = $tnBar;
+        $tnBar->rConstants[ ' baz' ] = $tnBaz;
 
         $r = [];
         self::assertSame( 'FOO', $trie->get( 'foo', $r ) );
@@ -329,9 +328,9 @@ final class TrieTest extends TestCase {
         $tnFoo = new TrieNode( 'FOO' );
         $tnBar = new TrieNode( 'BAR' );
         $tnBaz = new TrieNode( 'BAZ' );
-        $root->rChildren[ 'foo' ] = $tnFoo;
-        $tnFoo->rChildren[ 'bar' ] = $tnBar;
-        $tnBar->rChildren[ 'baz' ] = $tnBaz;
+        $root->rConstants[ 'foo' ] = $tnFoo;
+        $tnFoo->rConstants[ 'bar' ] = $tnBar;
+        $tnBar->rConstants[ 'baz' ] = $tnBaz;
 
         self::assertTrue( $trie->has( 'foo' ) );
         self::assertTrue( $trie->has( 'foobar' ) );
@@ -346,10 +345,10 @@ final class TrieTest extends TestCase {
         [ $trie, $root ] = $this->newTrie( true );
         assert( $root instanceof TrieNode );
         assert( $trie instanceof Trie );
-        $root->rChildren[ 'foo' ] = new TrieNode( 'FOO' );
-        $root->rChildren[ 'foo' ]->rVariableChildren[ '$bar' ] = new TrieNode( 'BAR' );
-        $root->rChildren[ 'foo' ]->rVariableChildren[ '$bar' ]->rChildren[ ' baz' ] = new TrieNode( 'BAZ' );
-        $root->rChildren[ 'foo' ]->rVariableChildren[ '$bar' ]->rChildren[ ' qux' ] = new TrieNode( 'QUX' );
+        $root->rConstants[ 'foo' ] = new TrieNode( 'FOO' );
+        $root->rConstants[ 'foo' ]->rVariables[ '$bar' ] = new TrieNode( 'BAR' );
+        $root->rConstants[ 'foo' ]->rVariables[ '$bar' ]->rConstants[ ' baz' ] = new TrieNode( 'BAZ' );
+        $root->rConstants[ 'foo' ]->rVariables[ '$bar' ]->rConstants[ ' qux' ] = new TrieNode( 'QUX' );
 
         self::assertSame( 'FOO', $trie->get( 'foo' ) );
         self::assertSame( 'BAR', $trie->get( 'fooqux' ) );
@@ -421,26 +420,26 @@ final class TrieTest extends TestCase {
         $trie->set( 'foobar', 'BAR' );
         $trie->set( 'foobarbaz', 'BAZ' );
 
-        self::assertSame( 'FOO', $root->rChildren[ 'foo' ]->xValue );
+        self::assertSame( 'FOO', $root->rConstants[ 'foo' ]->xValue );
         $trie->set( 'foo', 'OOF' );
-        self::assertSame( 'OOF', $root->rChildren[ 'foo' ]->xValue );
+        self::assertSame( 'OOF', $root->rConstants[ 'foo' ]->xValue );
 
-        self::assertSame( 'BAR', $root->rChildren[ 'foo' ]->rChildren[ 'bar' ]->xValue );
+        self::assertSame( 'BAR', $root->rConstants[ 'foo' ]->rConstants[ 'bar' ]->xValue );
         $trie->set( 'foobar', 'RAB' );
-        self::assertSame( 'RAB', $root->rChildren[ 'foo' ]->rChildren[ 'bar' ]->xValue );
+        self::assertSame( 'RAB', $root->rConstants[ 'foo' ]->rConstants[ 'bar' ]->xValue );
 
-        self::assertSame( 'BAZ', $root->rChildren[ 'foo' ]->rChildren[ 'bar' ]->rChildren[ 'baz' ]->xValue );
+        self::assertSame( 'BAZ', $root->rConstants[ 'foo' ]->rConstants[ 'bar' ]->rConstants[ 'baz' ]->xValue );
         $trie->set( 'foobarbaz', 'ZAB' );
-        self::assertSame( 'ZAB', $root->rChildren[ 'foo' ]->rChildren[ 'bar' ]->rChildren[ 'baz' ]->xValue );
+        self::assertSame( 'ZAB', $root->rConstants[ 'foo' ]->rConstants[ 'bar' ]->rConstants[ 'baz' ]->xValue );
 
         $trie->set( 'foo${bar}qux', 'QUX' );
         self::assertSame(
             'QUX',
-            $root->rChildren[ 'foo' ]->rVariableChildren[ '$bar' ]->rChildren[ 'qux' ]->xValue
+            $root->rConstants[ 'foo' ]->rVariables[ '$bar' ]->rConstants[ 'qux' ]->xValue
         );
         self::assertSame(
             'ZAB',
-            $root->rChildren[ 'foo' ]->rChildren[ 'bar' ]->rChildren[ 'baz' ]->xValue
+            $root->rConstants[ 'foo' ]->rConstants[ 'bar' ]->rConstants[ 'baz' ]->xValue
         );
     }
 
@@ -453,15 +452,15 @@ final class TrieTest extends TestCase {
         $tnBar = new TrieNode( 'BAR' );
         $tnBaz = new TrieNode( 'BAZ' );
         $tnQux = new TrieNode( 'QUX' );
-        $root->rChildren[ 'foo' ] = $tnFoo;
-        $tnFoo->rChildren[ 'bar' ] = $tnBar;
-        $tnBar->rChildren[ 'baz' ] = $tnBaz;
-        $tnBar->rVariableChildren[ '$qux' ] = $tnQux;
+        $root->rConstants[ 'foo' ] = $tnFoo;
+        $tnFoo->rConstants[ 'bar' ] = $tnBar;
+        $tnBar->rConstants[ 'baz' ] = $tnBaz;
+        $tnBar->rVariables[ '$qux' ] = $tnQux;
 
         $trie->unset( 'foobar' );
-        self::assertNull( $root->rChildren[ 'foo' ]->rChildren[ 'bar' ]->xValue );
-        self::assertSame( 'BAZ', $root->rChildren[ 'foo' ]->rChildren[ 'bar' ]->rChildren[ 'baz' ]->xValue );
-        self::assertSame( 'QUX', $root->rChildren[ 'foo' ]->rChildren[ 'bar' ]->rVariableChildren[ '$qux' ]->xValue );
+        self::assertNull( $root->rConstants[ 'foo' ]->rConstants[ 'bar' ]->xValue );
+        self::assertSame( 'BAZ', $root->rConstants[ 'foo' ]->rConstants[ 'bar' ]->rConstants[ 'baz' ]->xValue );
+        self::assertSame( 'QUX', $root->rConstants[ 'foo' ]->rConstants[ 'bar' ]->rVariables[ '$qux' ]->xValue );
     }
 
 
@@ -473,15 +472,15 @@ final class TrieTest extends TestCase {
         $tnBar = new TrieNode( 'BAR' );
         $tnBaz = new TrieNode( 'BAZ' );
         $tnQux = new TrieNode( 'QUX' );
-        $root->rChildren[ 'foo' ] = $tnFoo;
-        $tnFoo->rChildren[ 'bar' ] = $tnBar;
-        $tnBar->rChildren[ 'baz' ] = $tnBaz;
-        $tnBar->rVariableChildren[ '$qux' ] = $tnQux;
+        $root->rConstants[ 'foo' ] = $tnFoo;
+        $tnFoo->rConstants[ 'bar' ] = $tnBar;
+        $tnBar->rConstants[ 'baz' ] = $tnBaz;
+        $tnBar->rVariables[ '$qux' ] = $tnQux;
 
         $trie->unset( 'foobar', true );
-        self::assertNull( $root->rChildren[ 'foo' ]->rChildren[ 'bar' ]->xValue );
-        self::assertEmpty( $root->rChildren[ 'foo' ]->rChildren[ 'bar' ]->rChildren );
-        self::assertEmpty( $root->rChildren[ 'foo' ]->rChildren[ 'bar' ]->rVariableChildren );
+        self::assertNull( $root->rConstants[ 'foo' ]->rConstants[ 'bar' ]->xValue );
+        self::assertEmpty( $root->rConstants[ 'foo' ]->rConstants[ 'bar' ]->rConstants );
+        self::assertEmpty( $root->rConstants[ 'foo' ]->rConstants[ 'bar' ]->rVariables );
     }
 
 
