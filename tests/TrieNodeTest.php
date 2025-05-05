@@ -16,7 +16,7 @@ final class TrieNodeTest extends TestCase {
     public function testAddForCommonPrefix() : void {
         $node = new TrieNode();
         $node->rChildren[ 'foobar' ] = new TrieNode( 'baz' );
-        $tn = $node->add( 'fooqux', 'quux', false );
+        $tn = $node->add( 'fooqux', 'quux' );
         self::assertSame( 'quux', $tn->xValue );
         self::assertSame( $tn, $node->rChildren[ 'foo' ]->rChildren[ 'qux' ] );
         self::assertSame( 'baz', $node->rChildren[ 'foo' ]->rChildren[ 'bar' ]->xValue );
@@ -25,7 +25,7 @@ final class TrieNodeTest extends TestCase {
 
     public function testAddForDisallowedVariable() : void {
         $node = new TrieNode();
-        $tn = $node->add( 'foo$bar', 'baz', false );
+        $tn = $node->add( 'foo$bar', 'baz' );
         self::assertSame( 'baz', $tn->xValue );
         self::assertSame( $tn, $node->rChildren[ 'foo$bar' ] );
     }
@@ -34,7 +34,7 @@ final class TrieNodeTest extends TestCase {
     public function testAddForExistingNodePrefixMatch() : void {
         $node = new TrieNode();
         $node->rChildren[ 'foo' ] = new TrieNode( 'bar' );
-        $tn = $node->add( 'fooqux', 'baz', false );
+        $tn = $node->add( 'fooqux', 'baz' );
         self::assertSame( 'baz', $tn->xValue );
         self::assertSame( 'bar', $node->rChildren[ 'foo' ]->xValue );
         self::assertArrayHasKey( 'qux', $node->rChildren[ 'foo' ]->rChildren );
@@ -78,7 +78,7 @@ final class TrieNodeTest extends TestCase {
         $tnRoot->rChildren[ 'foo' ] = $tnFoo;
         $tnFoo->rChildren[ 'bar' ] = $tnBar;
         $tnBar->rChildren[ 'baz' ] = $tnBaz;
-        $tnQux = $tnRoot->add( 'foobarbazqux', 'QUX', false );
+        $tnQux = $tnRoot->add( 'foobarbazqux', 'QUX' );
         self::assertSame( 'QUX', $tnQux->xValue );
         self::assertSame( $tnQux, $tnBaz->rChildren[ 'qux' ] );
     }
@@ -87,7 +87,7 @@ final class TrieNodeTest extends TestCase {
     public function testAddForNewNodePrefixMatch() : void {
         $node = new TrieNode();
         $node->rChildren[ 'foobar' ] = new TrieNode( 'baz' );
-        $tn = $node->add( 'foo', 'qux', false );
+        $tn = $node->add( 'foo', 'qux' );
         self::assertSame( 'qux', $tn->xValue );
         self::assertSame( $tn, $node->rChildren[ 'foo' ] );
         self::assertSame( 'baz', $node->rChildren[ 'foo' ]->rChildren[ 'bar' ]->xValue );
@@ -96,13 +96,13 @@ final class TrieNodeTest extends TestCase {
 
     public function testAddForNoMatch() : void {
         $node = new TrieNode();
-        $tn = $node->add( 'foo', 'bar', false );
+        $tn = $node->add( 'foo', 'bar' );
         self::assertSame( 'bar', $node->rChildren[ 'foo' ]->xValue );
         self::assertSame( $tn, $node->rChildren[ 'foo' ] );
 
         $node = new TrieNode();
         $node2 = new TrieNode( 'baz' );
-        $node->add( 'bar', $node2, false );
+        $node->add( 'bar', $node2 );
         self::assertArrayHasKey( 'bar', $node->rChildren );
         self::assertSame( $node2, $node->rChildren[ 'bar' ] );
     }
@@ -117,7 +117,7 @@ final class TrieNodeTest extends TestCase {
         $tnRoot->rChildren[ 'foo' ] = $tnFoo;
         $tnFoo->rChildren[ 'bar' ] = $tnBar;
         $tnBar->rChildren[ 'baz' ] = $tnBaz;
-        $tnQux = $tnRoot->add( 'foobarqux', 'QUX', false );
+        $tnQux = $tnRoot->add( 'foobarqux', 'QUX' );
         self::assertSame( 'QUX', $tnQux->xValue );
         self::assertSame( $tnQux, $tnBar->rChildren[ 'qux' ] );
         self::assertSame( 'BAZ', $tnBar->rChildren[ 'baz' ]->xValue );
@@ -126,38 +126,39 @@ final class TrieNodeTest extends TestCase {
 
     public function testAddForSelf() : void {
         $node = new TrieNode();
-        $tn = $node->add( '', 'bar', false );
+        $tn = $node->add( '', 'bar' );
         self::assertSame( 'bar', $tn->xValue );
         self::assertSame( $tn, $node );
 
         $node = new TrieNode( 'foo' );
         self::expectException( InvalidArgumentException::class );
-        $node->add( '', 'bar', false );
+        $node->add( '', 'bar' );
     }
 
 
     public function testAddVariableChild() : void {
         $node = new TrieNode();
-        $tn = $node->addVariableChild( '$foo', 'bar', 'baz' );
-        self::assertSame( 'baz', $tn->xValue );
-        self::assertSame( $tn, $node->rVariableChildren[ '$foo' ]->rChildren[ 'bar' ] );
+        $tnFoo = $node->add( '$foo', null, true );
+        $tnBar = $tnFoo->add( 'bar', 'BAR', true );
+        self::assertSame( 'BAR', $tnBar->xValue );
+        self::assertSame( $tnBar, $node->rVariableChildren[ '$foo' ]->rChildren[ 'bar' ] );
     }
 
 
     public function testAddVariableChildForDuplicate() : void {
         $node = new TrieNode();
-        $tn = $node->addVariableChild( '$foo', '', 'baz' );
-        self::assertSame( 'baz', $tn->xValue );
+        $tn = $node->addVariableChild( '$foo', '', 'bar', false );
+        self::assertSame( 'bar', $tn->xValue );
         self::assertSame( $tn, $node->rVariableChildren[ '$foo' ] );
 
         self::expectException( InvalidArgumentException::class );
-        $node->addVariableChild( '$foo', '', 'qux' );
+        $node->addVariableChild( '$foo', '', 'qux', false );
     }
 
 
     public function testAddVariableChildForMultiple() : void {
         $node = new TrieNode();
-        $tn = $node->addVariableChild( '$foo', '$bar', 'baz' );
+        $tn = $node->addVariableChild( '$foo', '$bar', 'baz', false );
         self::assertSame( 'baz', $tn->xValue );
         self::assertSame( $tn, $node->rVariableChildren[ '$foo' ]->rVariableChildren[ '$bar' ] );
     }
@@ -310,15 +311,12 @@ final class TrieNodeTest extends TestCase {
     }
 
 
-    public function testListVariableChildren() : void {
+    public function testSet() : void {
         $node = new TrieNode();
-        $node->rVariableChildren[ '$foo' ] = new TrieNode( 'FOO' );
-        $node->rVariableChildren[ '$bar' ] = new TrieNode( 'BAR' );
-
-        $children = $node->listVariableChildren();
-        self::assertCount( 2, $children );
-        self::assertContains( '$foo', $children );
-        self::assertContains( '$bar', $children );
+        $node->rChildren[ 'foo' ] = new TrieNode( 'FOO' );
+        $tn = $node->set( 'foo', 'bar' );
+        self::assertSame( 'bar', $tn->xValue );
+        self::assertSame( $tn, $node->rChildren[ 'foo' ] );
     }
 
 

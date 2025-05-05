@@ -7,7 +7,10 @@ declare( strict_types = 1 );
 namespace JDWX\Trie;
 
 
-class Trie {
+/**
+ * @implements \ArrayAccess<string, mixed>
+ */
+class Trie implements \ArrayAccess {
 
 
     protected const string VARIABLE_VALUE_REGEX = '/^([-a-zA-Z0-9_.]+)(.*)$/';
@@ -50,22 +53,111 @@ class Trie {
         if ( is_array( $o_nrVariables ) ) {
             $o_nrVariables = [];
         }
-        return $this->getInner( $this->tnRoot, $i_stPath, $o_nrVariables );
+        $node = $this->getInner( $this->tnRoot, $i_stPath, $o_nrVariables, true );
+        return $node?->xValue;
     }
 
 
-    /** @param array<string, string>|null &$o_nrVariables */
-    protected function getInner( TrieNode $i_node, string $i_stPath, ?array &$o_nrVariables ) : mixed {
+    public function has( string $i_stPath, bool $i_bDecodeVariables = false ) : bool {
+        $r = null;
+        $node = $this->getInner( $this->tnRoot, $i_stPath, $r, $i_bDecodeVariables );
+        return $node?->xValue !== null;
+    }
+
+
+    /**
+     * @param string $offset
+     * @return bool
+     * @suppress PhanTypeMismatchDeclaredParamNullable
+     */
+    public function offsetExists( mixed $offset ) : bool {
+        /** @phpstan-ignore-next-line */
+        if ( ! is_string( $offset ) ) {
+            throw new \InvalidArgumentException( 'Trie keys must be strings.' );
+        }
+        return $this->has( $offset );
+    }
+
+
+    /**
+     * @param string $offset
+     * @return mixed
+     * @suppress PhanTypeMismatchDeclaredParamNullable
+     */
+    public function offsetGet( mixed $offset ) : mixed {
+        /** @phpstan-ignore-next-line */
+        if ( ! is_string( $offset ) ) {
+            throw new \InvalidArgumentException( 'Trie keys must be strings.' );
+        }
+        return $this->get( $offset );
+    }
+
+
+    /**
+     * @param string $offset
+     * @param mixed $value
+     * @suppress PhanTypeMismatchDeclaredParamNullable
+     */
+    public function offsetSet( mixed $offset, mixed $value ) : void {
+        /** @phpstan-ignore-next-line */
+        if ( ! is_string( $offset ) ) {
+            throw new \InvalidArgumentException( 'Trie keys must be strings.' );
+        }
+        $this->set( $offset, $value );
+    }
+
+
+    /**
+     * @param string $offset
+     * @suppress PhanTypeMismatchDeclaredParamNullable
+     */
+    public function offsetUnset( mixed $offset ) : void {
+        /** @phpstan-ignore-next-line */
+        if ( ! is_string( $offset ) ) {
+            throw new \InvalidArgumentException( 'Trie keys must be strings.' );
+        }
+        $this->unset( $offset );
+    }
+
+
+    public function set( string $i_stPath, mixed $i_xValue ) : void {
+        $this->tnRoot->set( $i_stPath, $i_xValue, $this->bAllowVariables );
+    }
+
+
+    public function unset( string $i_stPath, bool $i_bPrune = false ) : void {
+        $r = null;
+        $node = $this->getInner( $this->tnRoot, $i_stPath, $r, false );
+        if ( $node instanceof TrieNode ) {
+            $node->xValue = null;
+            if ( $i_bPrune ) {
+                $node->rChildren = [];
+                $node->rVariableChildren = [];
+            }
+        }
+    }
+
+
+    /**
+     * @param array<string, string>|null &$o_nrVariables An optional array to store variable values.
+     * @return TrieNode|null The node that matches the path, or null if not found.
+     */
+    protected function getInner( TrieNode $i_node, string $i_stPath, ?array &$o_nrVariables,
+                                 bool     $i_bDecodeVariables ) : ?TrieNode {
         $stPath = $i_stPath;
         $nodeMatch = $i_node->get( $stPath );
         if ( '' === $stPath ) {
-            return $nodeMatch->xValue;
+            return $nodeMatch;
         }
-        if ( ! $this->bAllowVariables || empty( $nodeMatch->rVariableChildren ) || ! is_array( $o_nrVariables ) ) {
+        if ( ! $this->bAllowVariables || empty( $nodeMatch->rVariableChildren ) ) {
             return null;
         }
 
-        [ $stValue, $stPath ] = static::extractVariableValue( $stPath );
+        if ( $i_bDecodeVariables ) {
+            [ $stValue, $stPath ] = static::extractVariableValue( $stPath );
+        } else {
+            [ $stValue, $stPath ] = TrieNode::extractVariableName( $stPath );
+        }
         if ( null === $stValue ) {
             return null;
         }
@@ -74,7 +166,7 @@ class Trie {
             if ( 1 === count( $nodeMatch->rVariableChildren ) ) {
                 $stVarName = array_keys( $nodeMatch->rVariableChildren )[ 0 ];
                 $o_nrVariables[ $stVarName ] = $stValue;
-                return $nodeMatch->rVariableChildren[ $stVarName ]->xValue;
+                return $nodeMatch->rVariableChildren[ $stVarName ];
             }
             $stKeys = join( ', ', array_keys( $nodeMatch->rVariableChildren ) );
             throw new \RuntimeException( "Variable substitution is ambiguous with: {$stKeys}" );
@@ -84,7 +176,7 @@ class Trie {
         $rMatches = [];
         foreach ( $nodeMatch->rVariableChildren as $stVarName => $tnChild ) {
             $rVariables = [ $stVarName => $stValue ];
-            $x = $this->getInner( $tnChild, $stPath, $rVariables );
+            $x = $this->getInner( $tnChild, $stPath, $rVariables, $i_bDecodeVariables );
             if ( null === $x ) {
                 continue;
             }

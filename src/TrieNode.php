@@ -76,10 +76,16 @@ class TrieNode {
     }
 
 
-    public function add( string $i_stPath, mixed $i_xValue, bool $i_bAllowVariables ) : TrieNode {
+    public function add( string $i_stPath, mixed $i_xValue, bool $i_bAllowVariables = false ) : TrieNode {
+        return $this->addInner( $i_stPath, $i_xValue, $i_bAllowVariables, false );
+    }
+
+
+    public function addInner( string $i_stPath, mixed $i_xValue, bool $i_bAllowVariables,
+                              bool   $i_bAllowOverwrite ) : TrieNode {
         # If the path is empty, you are adding a value to the current node.
         if ( '' === $i_stPath ) {
-            if ( null === $this->xValue ) {
+            if ( null === $this->xValue || $i_bAllowOverwrite ) {
                 # We can overwrite the value.
                 $this->xValue = self::asNotNode( $i_xValue );
                 return $this;
@@ -94,7 +100,7 @@ class TrieNode {
                 # This is a variable path.
                 [ $nstVarName, $stPath ] = self::extractVariableName( $i_stPath );
                 if ( is_string( $nstVarName ) && is_string( $stPath ) ) {
-                    return $this->addVariableChild( $nstVarName, $stPath, $i_xValue );
+                    return $this->addVariableChild( $nstVarName, $stPath, $i_xValue, $i_bAllowOverwrite );
                 }
             }
 
@@ -106,8 +112,8 @@ class TrieNode {
                 [ $stVarName, $stPathAfterVariable ] = self::extractVariableName( $stPathAfterVariable );
                 if ( is_string( $stVarName ) && is_string( $stPathAfterVariable ) ) {
                     # We have a variable name.
-                    $tnChild = $this->add( $stPathBeforeVariable, null, false );
-                    return $tnChild->addVariableChild( $stVarName, $stPathAfterVariable, $i_xValue );
+                    $tnChild = $this->addInner( $stPathBeforeVariable, null, false, $i_bAllowOverwrite );
+                    return $tnChild->addVariableChild( $stVarName, $stPathAfterVariable, $i_xValue, $i_bAllowOverwrite );
                 }
                 # It wasn't actually a variable name, so continue.
             }
@@ -131,37 +137,42 @@ class TrieNode {
             # Create a new child node for the common prefix.
             $tnSplit = new TrieNode();
             $this->rChildren[ $stPrefix ] = $tnSplit;
-            $tnSplit->add( substr( $stMatch, strlen( $stPrefix ) ), $this->rChildren[ $stMatch ], $i_bAllowVariables );
+            $tnSplit->addInner( substr( $stMatch, strlen( $stPrefix ) ), $this->rChildren[ $stMatch ],
+                $i_bAllowVariables, $i_bAllowOverwrite );
             unset( $this->rChildren[ $stMatch ] );
-            return $tnSplit->add( substr( $i_stPath, strlen( $stPrefix ) ), self::asNode( $i_xValue ), $i_bAllowVariables );
+            return $tnSplit->addInner( substr( $i_stPath, strlen( $stPrefix ) ), self::asNode( $i_xValue ),
+                $i_bAllowVariables, $i_bAllowOverwrite );
         }
 
         # Case 2: Existing child is a prefix match.
         if ( $stMatch === $stPrefix ) {
             # Add the new child to the existing child.
             $i_stPath = substr( $i_stPath, strlen( $stPrefix ) );
-            return $this->rChildren[ $stMatch ]->add( $i_stPath, $i_xValue, $i_bAllowVariables );
+            return $this->rChildren[ $stMatch ]->addInner( $i_stPath, $i_xValue, $i_bAllowVariables,
+                $i_bAllowOverwrite );
         }
 
         # Case 3: New child is a prefix match.
         assert( $stPrefix === $i_stPath );
         $tnChild = $this->rChildren[ $stMatch ];
         unset( $this->rChildren[ $stMatch ] );
-        $tnNew = $this->add( $stPrefix, $i_xValue, $i_bAllowVariables );
-        $tnNew->add( substr( $stMatch, strlen( $stPrefix ) ), $tnChild, $i_bAllowVariables );
+        $tnNew = $this->addInner( $stPrefix, $i_xValue, $i_bAllowVariables, $i_bAllowOverwrite );
+        $tnNew->addInner( substr( $stMatch, strlen( $stPrefix ) ), $tnChild, $i_bAllowVariables, $i_bAllowOverwrite );
         return $tnNew;
     }
 
 
-    public function addVariableChild( string $i_stVarName, string $i_stPath, mixed $i_xValue ) : TrieNode {
+    public function addVariableChild( string $i_stVarName, string $i_stPath, mixed $i_xValue,
+                                      bool   $i_bAllowOverwrite ) : TrieNode {
         if ( isset( $this->rVariableChildren[ $i_stVarName ] ) ) {
             # We already have a variable child with this name.
-            return $this->rVariableChildren[ $i_stVarName ]->add( $i_stPath, $i_xValue, true );
+            return $this->rVariableChildren[ $i_stVarName ]->addInner( $i_stPath, $i_xValue,
+                true, $i_bAllowOverwrite );
         }
         # Create a new child node for the variable.
         $tnChild = new TrieNode();
         $this->rVariableChildren[ $i_stVarName ] = $tnChild;
-        return $tnChild->add( $i_stPath, $i_xValue, true );
+        return $tnChild->addInner( $i_stPath, $i_xValue, true, $i_bAllowOverwrite );
     }
 
 
@@ -185,12 +196,6 @@ class TrieNode {
     }
 
 
-    /** @return list<string> */
-    public function listVariableChildren() : array {
-        return array_map( fn( $x ) => strval( $x ), array_keys( $this->rVariableChildren ) );
-    }
-
-
     /** @return list<?string> */
     public function matchPrefix( string $i_stPath ) : array {
         foreach ( $this->rChildren as $stNodePath => $tnChild ) {
@@ -201,6 +206,11 @@ class TrieNode {
             return [ $stPrefix, $stNodePath ];
         }
         return [ null, null ];
+    }
+
+
+    public function set( string $i_stPath, mixed $i_xValue, bool $i_bAllowVariables = false ) : TrieNode {
+        return $this->addInner( $i_stPath, $i_xValue, $i_bAllowVariables, true );
     }
 
 
