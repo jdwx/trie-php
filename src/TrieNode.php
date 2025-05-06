@@ -22,6 +22,15 @@ use LogicException;
 class TrieNode {
 
 
+    /** @var ?callable */
+    public static $fnExtractVarName = null;
+
+    /** @var ?callable */
+    public static $fnExtractVarValue = null;
+
+    protected static string $reVariableValue = '/^([-a-zA-Z0-9_.]+)(.*)$/';
+
+
     /** @var array<string, TrieNode> */
     public array $rConstants = [];
 
@@ -29,11 +38,11 @@ class TrieNode {
     public array $rVariables = [];
 
 
-    final public function __construct( public mixed $xValue = null, public ?TrieNode $parent = null ) { }
+    final public function __construct( public mixed $xValue = null, public ?TrieNode $parent = null ) {}
 
 
     public static function asNode( mixed $i_xValue, ?TrieNode $parent = null ) : static {
-        if ( $i_xValue instanceof TrieNode ) {
+        if ( $i_xValue instanceof static ) {
             $i_xValue->parent = $parent;
             return $i_xValue;
         }
@@ -49,6 +58,15 @@ class TrieNode {
     }
 
 
+    /** @noinspection PhpConditionAlreadyCheckedInspection */
+    public static function cast( TrieNode $i_node ) : static {
+        if ( $i_node instanceof static ) {
+            return $i_node;
+        }
+        throw new InvalidArgumentException( 'Invalid node type' );
+    }
+
+
     public static function commonPrefix( string $i_st1, string $i_st2 ) : string {
         /** @noinspection PhpStatementHasEmptyBodyInspection */
         for ( $i = 0 ; $i < strlen( $i_st1 ) && $i < strlen( $i_st2 ) && $i_st1[ $i ] === $i_st2[ $i ] ; ++$i ) {
@@ -58,7 +76,7 @@ class TrieNode {
 
 
     /** @return list<?string> */
-    public static function extractVariableName( string $i_stPath ) : array {
+    public static function defaultExtractVariableName( string $i_stPath ) : array {
         if ( ! str_starts_with( $i_stPath, '$' ) ) {
             return [ null, $i_stPath ];
         }
@@ -89,6 +107,43 @@ class TrieNode {
     }
 
 
+    /**
+     * @return list<?string>
+     *
+     *
+     */
+    public static function defaultExtractVariableValue( string $i_stPath ) : array {
+        $rMatches = [];
+        if ( ! preg_match( static::$reVariableValue, $i_stPath, $rMatches ) ) {
+            return [ null, $i_stPath ];
+        }
+        $stValue = $rMatches[ 1 ];
+        $stPath = $rMatches[ 2 ];
+        return [ $stValue, $stPath ];
+    }
+
+
+    /** @return list<?string> */
+    public static function extractVariableName( string $i_stPath ) : array {
+        if ( is_callable( static::$fnExtractVarName ) ) {
+            return ( static::$fnExtractVarName )( $i_stPath );
+        }
+        return static::defaultExtractVariableName( $i_stPath );
+    }
+
+
+    public static function extractVariableValue( string $i_stVarName, string $i_stPath ) : mixed {
+        if ( is_callable( static::$fnExtractVarValue ) ) {
+            return ( static::$fnExtractVarValue )( $i_stVarName, $i_stPath );
+        }
+        return static::defaultExtractVariableValue( $i_stPath );
+    }
+
+
+    /**
+     * @param array<string, TrieNode> $i_rOptions
+     * @return list<?string>
+     */
     public static function matchPrefix( array $i_rOptions, string $i_stKey ) : array {
         foreach ( $i_rOptions as $stNodePath => $tn ) {
             $stPrefix = static::commonPrefix( $stNodePath, $i_stKey );
@@ -102,16 +157,18 @@ class TrieNode {
     }
 
 
-    public function addConstant( string $i_stKey, mixed $i_xValue, bool $i_bAllowOverwrite = false ) : TrieNode {
+    public function addConstant( string $i_stKey, mixed $i_xValue, bool $i_bAllowOverwrite = false ) : static {
         [ $stPrefix, $stKey, $stRest ] = $this->matchConstantPrefix( $i_stKey );
         if ( ! is_string( $stPrefix ) ) {
             # No match. Add the new constant directly.
             return $this->linkConstant( $i_stKey, $i_xValue );
         }
+        assert( is_string( $stKey ) );
+        assert( is_string( $stRest ) );
 
         # Exact match. We can (try to) set the existing value.
         if ( $i_stKey === $stKey ) {
-            $tnc = $this->constant( $stKey );
+            $tnc = $this->constantEx( $i_stKey );
             $tnc->set( $i_xValue, $i_bAllowOverwrite );
             return $tnc;
         }
@@ -121,15 +178,16 @@ class TrieNode {
     }
 
 
-    public function addVariable( string $i_stKey, mixed $i_xValue, bool $i_bAllowOverwrite = false ) : TrieNode {
+    public function addVariable( string $i_stKey, mixed $i_xValue, bool $i_bAllowOverwrite = false ) : static {
         if ( isset( $this->rVariables[ $i_stKey ] ) &&
             ! is_null( $this->rVariables[ $i_stKey ]->xValue ) && ! $i_bAllowOverwrite ) {
             throw new InvalidArgumentException( "Variable node at '{$i_stKey}' already has a value" );
         }
-        if ( isset( $this->rVariables[ $i_stKey ] ) ) {
+        $var = $this->variable( $i_stKey );
+        if ( $var ) {
             # We have a variable node already, so we can set the value.
-            $this->rVariables[ $i_stKey ]->xValue = static::asNotNode( $i_xValue );
-            return $this->rVariables[ $i_stKey ];
+            $var->xValue = static::asNotNode( $i_xValue );
+            return $var;
         }
         # We don't have a matching variable node, so we need to create one.
         $tnv = new static( static::asNotNode( $i_xValue ), $this );
@@ -139,7 +197,24 @@ class TrieNode {
 
 
     public function constant( string $i_stKey ) : ?static {
+        /** @phpstan-ignore-next-line */
         return $this->rConstants[ $i_stKey ] ?? null;
+    }
+
+
+    public function constantEx( string $i_stKey ) : static {
+        /** @phpstan-ignore-next-line */
+        return $this->rConstants[ $i_stKey ];
+    }
+
+
+    /** @return iterable<string, static>
+     * @noinspection PhpCastIsUnnecessaryInspection
+     */
+    public function constants() : iterable {
+        foreach ( $this->rConstants as $stKey => $tn ) {
+            yield strval( $stKey ) => static::cast( $tn );
+        }
     }
 
 
@@ -170,7 +245,7 @@ class TrieNode {
 
 
     public function getConstant( string &$io_stPath ) : ?static {
-        foreach ( $this->rConstants as $stNodePath => $tnc ) {
+        foreach ( $this->constants() as $stNodePath => $tnc ) {
             if ( str_starts_with( $io_stPath, $stNodePath ) ) {
                 if ( $tnc->isDead() ) {
                     # This is a dead node. We can prune it.
@@ -194,7 +269,7 @@ class TrieNode {
         if ( isset( $this->rConstants[ $i_stKey ] ) ) {
             throw new InvalidArgumentException( "Constant node at '{$i_stKey}' already exists" );
         }
-        if ( ! $tnc instanceof TrieNode ) {
+        if ( ! $tnc instanceof static ) {
             $tnc = new static( $tnc, $this );
         } else {
             $tnc->parent = $this;
@@ -207,7 +282,7 @@ class TrieNode {
         if ( isset( $this->rVariables[ $i_stVarName ] ) ) {
             throw new InvalidArgumentException( "Variable node at '{$i_stVarName}' already exists" );
         }
-        if ( ! $tnv instanceof TrieNode ) {
+        if ( ! $tnv instanceof static ) {
             $tnv = new static( $tnv, $this );
         } else {
             $tnv->parent = $this;
@@ -218,7 +293,7 @@ class TrieNode {
 
     /**
      * @return list<?string> Returns an array containing the common prefix,
-     *                       the node path, and the remaining path,
+     *                       the matched key, and the remaining path,
      *                       or null if no match is found.
      */
     public function matchConstantPrefix( string $i_stPath ) : array {
@@ -273,7 +348,7 @@ class TrieNode {
      * @param string $i_stPrefix
      * @param string $i_stOldKey
      * @param string $i_stNewRest The new key to be added after the prefix.
-     * @param mixed $i_xValue The new value to be associated with the new key.
+     * @param mixed $i_xNewValue The new value to be associated with the new key.
      * @return static Returns the child node associated with the new value.
      *
      * This method splits a constant link (e.g., "FooBar") to add a new
@@ -293,7 +368,7 @@ class TrieNode {
         # 3. The new key is a prefix of the old key. (E.g., "Foo" for "FooBar")
 
         $stOldRest = substr( $i_stOldKey, strlen( $i_stPrefix ) );
-        $tncOldConstant = $this->rConstants[ $i_stOldKey ];
+        $tncOldConstant = $this->constantEx( $i_stOldKey );
         $i_xNewValue = static::asNotNode( $i_xNewValue );
 
         # Case 1: Old key is a prefix of the new key.
@@ -330,7 +405,24 @@ class TrieNode {
 
 
     public function variable( string $i_stPath ) : ?static {
+        /** @phpstan-ignore-next-line */
         return $this->rVariables[ $i_stPath ] ?? null;
+    }
+
+
+    public function variableEx( string $i_stPath ) : static {
+        /** @phpstan-ignore-next-line */
+        return $this->rVariables[ $i_stPath ];
+    }
+
+
+    /** @return iterable<string, static>
+     * @noinspection PhpCastIsUnnecessaryInspection
+     */
+    public function variables() : iterable {
+        foreach ( $this->rVariables as $stKey => $tn ) {
+            yield strval( $stKey ) => static::cast( $tn );
+        }
     }
 
 

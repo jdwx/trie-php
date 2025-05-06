@@ -18,13 +18,12 @@ use RuntimeException;
 class Trie implements ArrayAccess {
 
 
-    protected const string VARIABLE_VALUE_REGEX = '/^([-a-zA-Z0-9_.]+)(.*)$/';
 
-    protected TrieNode $tnRoot;
+    protected TrieNodeNavigator $tnRoot;
 
 
     public function __construct( private readonly bool $bAllowVariables = false ) {
-        $this->tnRoot = new TrieNode();
+        $this->tnRoot = new TrieNodeNavigator();
     }
 
 
@@ -38,13 +37,6 @@ class Trie implements ArrayAccess {
      * underscore, period, and hyphen. That's pretty arbitrary.
      */
     public static function extractVariableValue( string $i_stPath ) : array {
-        $rMatches = [];
-        if ( ! preg_match( static::VARIABLE_VALUE_REGEX, $i_stPath, $rMatches ) ) {
-            return [ null, $i_stPath ];
-        }
-        $stValue = $rMatches[ 1 ];
-        $stPath = $rMatches[ 2 ];
-        return [ $stValue, $stPath ];
     }
 
 
@@ -125,9 +117,11 @@ class Trie implements ArrayAccess {
     }
 
 
+    /*
     public function set( string $i_stPath, mixed $i_xValue ) : void {
-        $this->tnRoot->set( $i_stPath, $i_xValue, $this->bAllowVariables );
+        $this->tnRoot->setDeep( $i_stPath, $i_xValue, $this->bAllowVariables );
     }
+    */
 
 
     public function unset( string $i_stPath, bool $i_bPrune = false ) : void {

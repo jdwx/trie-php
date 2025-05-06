@@ -11,10 +11,6 @@ class TrieNodeNavigator extends TrieNode {
 
 
     /*
-    public function add( string $i_stPath, mixed $i_xValue, bool $i_bAllowVariables = false ) : TrieNode {
-        $node = $this->getClosestConstant( $i_stPath );
-        return $node->addConstant( $i_stPath, $i_xValue, $i_bAllowVariables );
-    }
 
 
     public function addInner( string $i_stPath, mixed $i_xValue, bool $i_bAllowVariables,
@@ -119,6 +115,17 @@ class TrieNodeNavigator extends TrieNode {
 
     */
 
+    public function add( string $i_stPath, mixed $i_xValue, bool $i_bAllowVariables = false ) : TrieNode {
+        $walk = $this->walk( $i_stPath, $i_bAllowVariables, false );
+        if ( is_null( $walk->tsTail ) ) {
+            if ( str_starts_with( $i_stPath, '$' ) ) {
+                return $this->addVariable( $i_stPath, $i_xValue );
+            }
+            return $this->addConstant( $i_stPath, $i_xValue );
+        }
+        return static::cast( $walk->tsTail->tnTo )->add( $walk->stRest, $i_xValue, $i_bAllowVariables );
+    }
+
 
     public function getClosestConstant( string &$io_stPath ) : static {
         $tnChild = $this->getConstant( $io_stPath );
@@ -158,6 +165,71 @@ class TrieNodeNavigator extends TrieNode {
 
         $io_stPath = $stPathAfterVariable;
         return $node->variable( $stVarName )->getClosestForSet( $io_stPath, true );
+    }
+
+
+    public function walk( string $i_stPath, bool $i_bAllowVariables, bool $i_bSubstituteVariables ) : TrieWalk {
+
+        # Nothing left.
+        if ( '' === $i_stPath ) {
+            return new TrieWalk();
+        }
+
+        # First, look for a constant match.
+        [ $stPrefix, $stKey, $stRest ] = $this->matchConstantPrefix( $i_stPath );
+        if ( is_string( $stKey ) ) {
+            assert( is_string( $stRest ) );
+            assert( is_string( $stPrefix ) );
+            $tnChild = $this->constantEx( $stKey );
+            if ( $stKey === $stPrefix ) {
+                $walkRest = $tnChild->walk( $stRest, $i_bAllowVariables, $i_bSubstituteVariables );
+                $walkRest->prepend( $stKey, $stPrefix, $tnChild );
+                return $walkRest;
+            }
+            $walk = new TrieWalk();
+            $walk->stRest = $stPrefix . $stRest;
+            return $walk;
+        }
+
+        if ( ! $i_bAllowVariables ) {
+            # No variables allowed, so we are done.
+            $walk = new TrieWalk();
+            $walk->stRest = $i_stPath;
+            return $walk;
+        }
+
+        if ( ! $i_bSubstituteVariables ) {
+            # Second, look for a variable match without substitution.
+            [ $stVarName, $stPathAfterVariable ] = self::extractVariableName( $i_stPath );
+            if ( is_string( $stVarName ) && isset( $this->rVariables[ $stVarName ] ) ) {
+                assert( is_string( $stPathAfterVariable ) );
+                # We have a variable match.
+                $tnChild = $this->variableEx( $stVarName );
+                $walk = new TrieWalk();
+                $walk->append( $stVarName, $stVarName, $tnChild );
+                return $walk->merge( $tnChild->walk( $stPathAfterVariable, true, true ) );
+            }
+            $walk = new TrieWalk();
+            $walk->stRest = $i_stPath;
+            return $walk;
+        }
+
+        foreach ( $this->variables() as $stVarName => $tnChild ) {
+            # Third, look for a variable match with substitution.
+            [ $stVarValue, $stPathAfterVariable ] = self::extractVariableValue( $stVarName, $i_stPath );
+            if ( ! is_string( $stVarValue ) ) {
+                continue;
+            }
+            # We have a variable match.
+            $walk = $tnChild->walk( $stPathAfterVariable, true, true );
+            $walk->prepend( $stVarName, $stVarValue, $tnChild );
+            return $walk;
+        }
+
+        $walk = new TrieWalk();
+        $walk->stRest = $i_stPath;
+        return $walk;
+
     }
 
 

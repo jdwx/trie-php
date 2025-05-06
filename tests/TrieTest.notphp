@@ -92,21 +92,6 @@ final class TrieTestDisabled {
     }
 
 
-    public function testExtractVariableValue() : void {
-        [ $stMatch, $stPath ] = Trie::extractVariableValue( 'FooBarBaz Qux' );
-        self::assertSame( 'FooBarBaz', $stMatch );
-        self::assertSame( ' Qux', $stPath );
-
-        [ $stMatch, $stPath ] = Trie::extractVariableValue( 'FooBarBaz' );
-        self::assertSame( 'FooBarBaz', $stMatch );
-        self::assertSame( '', $stPath );
-
-        [ $stMatch, $stPath ] = Trie::extractVariableValue( '!FooBarBaz' );
-        self::assertNull( $stMatch );
-        self::assertSame( '!FooBarBaz', $stPath );
-    }
-
-
     /**
      * @return void
      * @noinspection SpellCheckingInspection

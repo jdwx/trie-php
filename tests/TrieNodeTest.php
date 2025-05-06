@@ -5,6 +5,7 @@ declare( strict_types = 1 );
 
 
 use JDWX\Trie\TrieNode;
+use JDWX\Trie\TrieNodeNavigator;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 
@@ -84,6 +85,15 @@ final class TrieNodeTest extends TestCase {
     }
 
 
+    public function testCast() : void {
+        $node = new TrieNode( 'foo' );
+        self::assertSame( $node, TrieNode::cast( $node ) );
+        self::expectException( InvalidArgumentException::class );
+        TrieNodeNavigator::cast( $node );
+
+    }
+
+
     public function testChild() : void {
         $node = new TrieNode();
         self::assertNull( $node->constant( 'Foo' ) );
@@ -94,15 +104,29 @@ final class TrieNodeTest extends TestCase {
     }
 
 
-    /** @noinspection SpellCheckingInspection */
     public function testCommonPrefix() : void {
-        self::assertSame( 'foo', TrieNode::commonPrefix( 'foo', 'foobar' ) );
-        self::assertSame( 'foo', TrieNode::commonPrefix( 'foobar', 'foo' ) );
-        self::assertSame( 'foo', TrieNode::commonPrefix( 'foobar', 'fooqux' ) );
-        self::assertSame( '', TrieNode::commonPrefix( 'foo', 'bar' ) );
+        self::assertSame( 'Foo', TrieNode::commonPrefix( 'Foo', 'FooBar' ) );
+        self::assertSame( 'Foo', TrieNode::commonPrefix( 'Foobar', 'Foo' ) );
+        self::assertSame( 'Foo', TrieNode::commonPrefix( 'Foobar', 'FooQux' ) );
+        self::assertSame( '', TrieNode::commonPrefix( 'Foo', 'Bar' ) );
         self::assertSame( '', TrieNode::commonPrefix( '', '' ) );
-        self::assertSame( '', TrieNode::commonPrefix( 'foo', '' ) );
-        self::assertSame( '', TrieNode::commonPrefix( '', 'foo' ) );
+        self::assertSame( '', TrieNode::commonPrefix( 'Foo', '' ) );
+        self::assertSame( '', TrieNode::commonPrefix( '', 'Foo' ) );
+    }
+
+
+    public function testConstant() : void {
+        $node = new TrieNode();
+        $tnFoo = $node->rConstants[ 'Foo' ] = new TrieNode( 'FOO' );
+        self::assertSame( $tnFoo, $node->constant( 'Foo' ) );
+    }
+
+
+    public function testConstants() : void {
+        $node = new TrieNode();
+        $tnFoo = $node->rConstants[ 'Foo' ] = new TrieNode( 'FOO' );
+        $tnBar = $node->rConstants[ 'Bar' ] = new TrieNode( 'BAR' );
+        self::assertSame( [ 'Foo' => $tnFoo, 'Bar' => $tnBar ], iterator_to_array( $node->constants() ) );
     }
 
 
@@ -161,7 +185,72 @@ final class TrieNodeTest extends TestCase {
         [ $stVar, $stRest ] = TrieNode::extractVariableName( '${}foo' );
         self::assertNull( $stVar );
         self::assertSame( '${}foo', $stRest );
+    }
 
+
+    public function testExtractVariableNameForCustom() : void {
+        TrieNode::$fnExtractVarName = function ( $stPath ) {
+            # Silly example, variable names may contain only digits.
+            if ( ! preg_match( '/^(\$[0-9]+)(.*)$/', $stPath, $matches ) ) {
+                return [ null, $stPath ];
+            }
+            return [ $matches[ 1 ], $matches[ 2 ] ];
+        };
+        [ $stVar, $stRest ] = TrieNode::extractVariableName( '$123Foo' );
+        self::assertSame( '$123', $stVar );
+        self::assertSame( 'Foo', $stRest );
+
+        [ $stVar, $stRest ] = TrieNode::extractVariableName( '$123' );
+        self::assertSame( '$123', $stVar );
+        self::assertSame( '', $stRest );
+
+        [ $stVar, $stRest ] = TrieNode::extractVariableName( 'FooBar' );
+        self::assertNull( $stVar );
+        self::assertSame( 'FooBar', $stRest );
+
+        TrieNode::$fnExtractVarName = null;
+    }
+
+
+    public function testExtractVariableValue() : void {
+        [ $stMatch, $stPath ] = TrieNode::extractVariableValue( '$var', 'FooBarBaz' );
+        self::assertSame( 'FooBarBaz', $stMatch );
+        self::assertSame( '', $stPath );
+
+        [ $stMatch, $stPath ] = TrieNode::extractVariableValue( '$var', 'FooBar:Baz' );
+        self::assertSame( 'FooBar', $stMatch );
+        self::assertSame( ':Baz', $stPath );
+
+        [ $stMatch, $stPath ] = TrieNode::extractVariableValue( '$var', 'FooBarBaz Qux' );
+        self::assertSame( 'FooBarBaz', $stMatch );
+        self::assertSame( ' Qux', $stPath );
+
+        [ $stMatch, $stPath ] = TrieNode::extractVariableValue( '$var', '!FooBarBaz' );
+        self::assertNull( $stMatch );
+        self::assertSame( '!FooBarBaz', $stPath );
+    }
+
+
+    public function testExtractVariableValueForCustom() : void {
+        TrieNode::$fnExtractVarValue = function ( $stVar, $stPath ) {
+            # Silly example, variable values may only contain a lowercase x.
+            $uPos = strspn( $stPath, 'x' );
+            if ( $uPos === 0 ) {
+                return [ null, $stPath ];
+            }
+            $stMatch = substr( $stPath, 0, $uPos );
+            $stPath = substr( $stPath, $uPos );
+            return [ $stMatch, $stPath ];
+        };
+        [ $stMatch, $stPath ] = TrieNode::extractVariableValue( '$var', 'FooBarBaz' );
+        self::assertNull( $stMatch );
+        self::assertSame( 'FooBarBaz', $stPath );
+
+        [ $stMatch, $stPath ] = TrieNode::extractVariableValue( '$var', 'xxxFoo' );
+        self::assertSame( 'xxx', $stMatch );
+        self::assertSame( 'Foo', $stPath );
+
+        TrieNode::$fnExtractVarValue = null;
     }
 
 
@@ -496,6 +585,14 @@ final class TrieNodeTest extends TestCase {
         $node->rVariables[ '$Foo' ] = $tnFoo;
         self::assertSame( $tnFoo, $node->variable( '$Foo' ) );
         self::assertNull( $node->variable( '$Bar' ) );
+    }
+
+
+    public function testVariables() : void {
+        $node = new TrieNode();
+        $tnFoo = $node->rVariables[ '$Foo' ] = new TrieNode( 'FOO' );
+        $tnBar = $node->rVariables[ '$Bar' ] = new TrieNode( 'BAR' );
+        self::assertSame( [ '$Foo' => $tnFoo, '$Bar' => $tnBar ], iterator_to_array( $node->variables() ) );
     }
 
 

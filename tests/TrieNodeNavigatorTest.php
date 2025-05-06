@@ -13,6 +13,28 @@ use PHPUnit\Framework\TestCase;
 final class TrieNodeNavigatorTest extends TestCase {
 
 
+    public function testAddForConstants() : void {
+        $tnRoot = new TrieNodeNavigator();
+        $tnRoot->add( 'Foo', 'FOO' );
+        $tnRoot->add( 'FooBar', 'BAR' );
+        $tnRoot->add( 'FooBarBaz', 'BAZ' );
+        self::assertSame( 'FOO', $tnRoot->rConstants[ 'Foo' ]->xValue );
+        self::assertSame( 'BAR', $tnRoot->rConstants[ 'Foo' ]->rConstants[ 'Bar' ]->xValue );
+        self::assertSame( 'BAZ', $tnRoot->rConstants[ 'Foo' ]->rConstants[ 'Bar' ]->rConstants[ 'Baz' ]->xValue );
+    }
+
+
+    public function testAddForVariable() : void {
+        $tnRoot = new TrieNodeNavigator();
+        $tnRoot->add( 'Foo', 'FOO', true );
+        $tnRoot->add( 'Foo$Bar', 'BAR', true );
+        $tnRoot->add( 'Foo${Bar}Baz', 'BAZ', true );
+        self::assertSame( 'FOO', $tnRoot->rConstants[ 'Foo' ]->xValue );
+        self::assertSame( 'BAR', $tnRoot->rConstants[ 'Foo' ]->rVariables[ '$Bar' ]->xValue );
+        self::assertSame( 'BAZ', $tnRoot->rConstants[ 'Foo' ]->rVariables[ '$Bar' ]->rConstants[ 'Baz' ]->xValue );
+    }
+
+
     public function testGet() : void {
         $tnRoot = new TrieNodeNavigator();
         $tnFoo = $tnRoot->linkConstant( 'Foo', 'FOO' );
@@ -66,6 +88,78 @@ final class TrieNodeNavigatorTest extends TestCase {
         self::assertSame( $tnFoo, $tn );
         self::assertSame( '${Baz}Qux', $stPath );
 
+    }
+
+
+    public function testWalkForNoVariables() : void {
+        $tnRoot = new TrieNodeNavigator();
+        $tnFoo = $tnRoot->linkConstant( 'Foo', 'FOO' );
+        $tnBar = $tnFoo->linkConstant( 'Bar', 'BAR' );
+        $tnBar->linkConstant( 'Baz', 'BAZ' );
+        $walk = $tnRoot->walk( 'FooBarBaz', false, false );
+        self::assertSame( 'FooBarBaz', $walk->path() );
+        self::assertSame( '', $walk->stRest );
+
+        $walk = $tnRoot->walk( 'FooBarBazQux', false, false );
+        self::assertSame( 'FooBarBaz', $walk->path() );
+        self::assertSame( 'Qux', $walk->stRest );
+
+        $walk = $tnRoot->walk( 'FooBarQux', false, false );
+        self::assertSame( 'FooBar', $walk->path() );
+        self::assertSame( 'Qux', $walk->stRest );
+    }
+
+
+    public function testWalkForVariablesNoSubst() : void {
+        $tnRoot = new TrieNodeNavigator();
+        $tnFoo = $tnRoot->linkConstant( 'Foo', 'FOO' );
+        $tnBar = $tnFoo->linkVariable( '$Bar', 'BAR' );
+        $tnBar->linkConstant( 'Baz', 'BAZ' );
+        $walk = $tnRoot->walk( 'Foo${Bar}Baz', true, false );
+        self::assertSame( 'Foo$BarBaz', $walk->path() );
+        self::assertSame( '', $walk->stRest );
+
+        $walk = $tnRoot->walk( 'Foo${Bar}BazQux', true, false );
+        self::assertSame( 'Foo$BarBaz', $walk->path() );
+        self::assertSame( 'Qux', $walk->stRest );
+
+        $walk = $tnRoot->walk( 'Foo${Bar}Qux', true, false );
+        self::assertSame( 'Foo$Bar', $walk->path() );
+        self::assertSame( 'Qux', $walk->stRest );
+
+        $walk = $tnRoot->walk( 'Foo${Qux}Baz', true, false );
+        self::assertSame( 'Foo', $walk->path() );
+        self::assertSame( '${Qux}Baz', $walk->stRest );
+    }
+
+
+    public function testWalkForVariablesWithSubst() : void {
+        $tnRoot = new TrieNodeNavigator();
+        $tnFoo = $tnRoot->linkConstant( 'Foo', 'FOO' );
+        $tnBar = $tnFoo->linkVariable( '$Bar', 'BAR' );
+        $tnBar->linkConstant( ' Baz', 'BAZ' );
+        $walk = $tnRoot->walk( 'FooQux Baz', true, true );
+        self::assertSame( 'Foo$Bar Baz', $walk->path() );
+        self::assertSame( '', $walk->stRest );
+
+        $walk = $tnRoot->walk( 'FooQuux BazQux', true, true );
+        self::assertSame( 'Foo$Bar Baz', $walk->path() );
+        self::assertSame( 'Qux', $walk->stRest );
+
+        $walk = $tnRoot->walk( 'FooQuux Qux', true, true );
+        self::assertSame( 'Foo$Bar', $walk->path() );
+        self::assertSame( ' Qux', $walk->stRest );
+    }
+
+
+    public function testWalkWithVariableSubstMismatch() : void {
+        $tnRoot = new TrieNodeNavigator();
+        $tnFoo = $tnRoot->linkConstant( 'Foo', 'FOO' );
+        $tnBar = $tnFoo->linkVariable( '$Bar', 'BAR' );
+        $tnBar->linkConstant( ' Baz', 'BAZ' );
+        $walk = $tnRoot->walk( 'Foo$Qux', true, true );
+        self::assertSame( 'Foo', $walk->path() );
+        self::assertSame( '$Qux', $walk->stRest );
     }
 
 

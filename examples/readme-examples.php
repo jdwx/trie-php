@@ -6,8 +6,9 @@ declare( strict_types = 1 );
 
 require __DIR__ . '/../vendor/autoload.php';
 
+/*
 
-(function() : void {
+( function () : void {
 
     $trie = new JDWX\Trie\Trie();
     $trie->add( 'foo', 'FOO' );
@@ -20,9 +21,10 @@ require __DIR__ . '/../vendor/autoload.php';
     $trie->get( 'foo/bar/baz/quux' ); # => null
 
     $stPath = 'foo/bar/baz/quux';
-    echo $trie->getPrefix( $stPath ), "\n"; # => BAZ
+    // echo $trie->getPrefix( $stPath ), "\n"; # => BAZ
     echo "path = ", $stPath, "\n"; # => '/quux'
 
 
+} )();
 
-})();
+*/
