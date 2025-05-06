@@ -24,70 +24,388 @@ final class TrieNodeNavigatorTest extends TestCase {
     }
 
 
+    public function testAddForNoVariables() : void {
+        $root = new TrieNodeNavigator();
+        $root->add( 'Foo', 'FOO' );
+        $root->add( 'Foo Bar', 'BAR' );
+        $root->add( 'Foo Bar:Baz', 'BAZ' );
+        $root->add( 'Foo $Bar Qux', 'QUX' );
+
+        self::assertSame( 'FOO', $root->rConstants[ 'Foo' ]->xValue );
+        self::assertSame( 'BAR', $root->rConstants[ 'Foo' ]->rConstants[ ' ' ]->rConstants[ 'Bar' ]->xValue );
+        self::assertSame(
+            'BAZ',
+            $root->rConstants[ 'Foo' ]->rConstants[ ' ' ]->rConstants[ 'Bar' ]->rConstants[ ':Baz' ]->xValue
+        );
+        self::assertSame(
+            'QUX',
+            $root->rConstants[ 'Foo' ]->rConstants[ ' ' ]->rConstants[ '$Bar Qux' ]->xValue
+        );
+
+    }
+
+
     public function testAddForVariable() : void {
         $tnRoot = new TrieNodeNavigator();
         $tnRoot->add( 'Foo', 'FOO', true );
         $tnRoot->add( 'Foo$Bar', 'BAR', true );
         $tnRoot->add( 'Foo${Bar}Baz', 'BAZ', true );
+        $tnRoot->add( 'Foo${Qux}Quux', 'QUUX', true );
         self::assertSame( 'FOO', $tnRoot->rConstants[ 'Foo' ]->xValue );
         self::assertSame( 'BAR', $tnRoot->rConstants[ 'Foo' ]->rVariables[ '$Bar' ]->xValue );
-        self::assertSame( 'BAZ', $tnRoot->rConstants[ 'Foo' ]->rVariables[ '$Bar' ]->rConstants[ 'Baz' ]->xValue );
+        self::assertSame(
+            'BAZ',
+            $tnRoot->rConstants[ 'Foo' ]->rVariables[ '$Bar' ]->rConstants[ 'Baz' ]->xValue
+        );
+        self::assertNull( $tnRoot->rConstants[ 'Foo' ]->rVariables[ '$Qux' ]->xValue );
+        self::assertSame(
+            'QUUX',
+            $tnRoot->rConstants[ 'Foo' ]->rVariables[ '$Qux' ]->rConstants[ 'Quux' ]->xValue
+        );
     }
 
 
     public function testGet() : void {
         $tnRoot = new TrieNodeNavigator();
-        $tnFoo = $tnRoot->linkConstant( 'Foo', 'FOO' );
-        $tnBar = $tnFoo->linkConstant( 'Bar', 'BAR' );
-        $tnBaz = $tnBar->linkConstant( 'Baz', 'BAZ' );
+        $tnRoot->add( 'Foo', 'FOO', true );
+        $tnRoot->add( 'Foo#$Bar', 'BAR', true );
+        $tnRoot->add( 'Foo#$Bar#Baz', 'BAZ', true );
+        $tnRoot->add( 'Foo#$Bar#Baz#$Qux', 'QUX', true );
+        $tnRoot->add( 'Foo#$Bar#Baz#$Qux#Quux', 'QUUX', true );
 
-        $stPath = 'Foo';
-        self::assertSame( $tnFoo, $tnRoot->getClosestConstant( $stPath ) );
-        self::assertSame( '', $stPath );
+        $r = [];
+        self::assertSame(
+            'FOO',
+            $tnRoot->get( 'Foo', $r, true )
+        );
+        self::assertSame(
+            'BAR',
+            $tnRoot->get( 'Foo#Corge', $r, true )
+        );
+        self::assertSame(
+            'BAZ',
+            $tnRoot->get( 'Foo#Corge#Baz', $r, true )
+        );
+        self::assertSame(
+            'QUX',
+            $tnRoot->get( 'Foo#Corge#Baz#Grault', $r, true )
+        );
+        self::assertSame(
+            'QUUX',
+            $tnRoot->get( 'Foo#Corge#Baz#Grault#Quux', $r, true )
+        );
 
-        $stPath = 'FooBar';
-        self::assertSame( $tnBar, $tnRoot->getClosestConstant( $stPath ) );
-        self::assertSame( '', $stPath );
+        self::assertNull( $tnRoot->get( 'Oof', $r, true ) );
 
-        $stPath = 'FooBarBaz';
-        self::assertSame( $tnBaz, $tnRoot->getClosestConstant( $stPath ) );
-        self::assertSame( '', $stPath );
-
-        $stPath = 'FooBarQux';
-        self::assertSame( $tnBar, $tnRoot->getClosestConstant( $stPath ) );
-        self::assertSame( 'Qux', $stPath );
     }
 
 
-    public function testGetClosestForSet() : void {
+    public function testGetForAmbiguousIntermediateVariable() : void {
+        $root = new TrieNodeNavigator();
+        $tnFoo = $root->addConstant( 'Foo', 'FOO' );
+        $tnBar = $tnFoo->addVariable( '$Bar', 'BAR' );
+        $tnBaz = $tnFoo->addVariable( '$Baz', 'BAZ' );
+        $tnBar->addConstant( ' Qux', 'QUX' );
+        $tnBaz->addConstant( ' Qux', 'QUUX' );
+
+        $r = [];
+        self::expectException( RuntimeException::class );
+        $root->get( 'FooCorge Qux', $r, true );
+    }
+
+
+    public function testGetForAmbiguousTerminalVariable() : void {
+        $root = new TrieNodeNavigator();
+        $tnFoo = $root->addConstant( 'Foo', 'FOO' );
+        $tnFoo->addVariable( '$Bar', 'BAR' );
+        $tnFoo->addVariable( '$Baz', 'BAZ' );
+
+        $r = [];
+        self::expectException( RuntimeException::class );
+        $root->get( 'FooQux', $r, true );
+    }
+
+
+    public function testGetForInvalidVariableValue() : void {
+        $root = new TrieNodeNavigator();
+        $tnFoo = $root->addConstant( 'Foo', 'FOO' );
+        $tnBar = $tnFoo->addVariable( '$Bar', 'BAR' );
+        $tnBar->addVariable( '$Baz', 'BAZ' );
+        $r = [];
+        self::assertNull( $root->get( 'Foo QuxBaz', $r ) );
+    }
+
+
+    public function testGetForMixedVariableAndConstant() : void {
+        $root = new TrieNodeNavigator();
+        $tnFoo = $root->addConstant( 'Foo', 'FOO' );
+        $tnBar = $tnFoo->addConstant( 'Bar', 'BAR' );
+        $tnBaz = $tnFoo->addVariable( '$Baz', 'BAZ' );
+
+        $r = [];
+        self::assertSame( 'FOO', $root->get( 'Foo', $r, true ) );
+        self::assertEmpty( $r );
+        self::assertSame( 'BAR', $root->get( 'FooBar', $r, true ) );
+        self::assertEmpty( $r );
+        self::assertSame( 'BAZ', $root->get( 'FooQux', $r, true ) );
+        self::assertCount( 1, $r );
+        self::assertArrayHasKey( '$Baz', $r );
+        self::assertContains( 'Qux', $r );
+
+        $tnBar->addConstant( ' Qux', 'QUX' );
+        $tnBaz->addConstant( ' Quux', 'QUUX' );
+
+        self::assertSame( 'QUX', $root->get( 'FooBar Qux', $r, true ) );
+        self::assertEmpty( $r );
+        self::assertSame( 'QUUX', $root->get( 'FooCorge Quux', $r, true ) );
+        self::assertCount( 1, $r );
+    }
+
+
+    public function testGetForNoMatchAfterVariable() : void {
+        $root = new TrieNodeNavigator();
+        $tnFoo = $root->addConstant( 'Foo', 'FOO' );
+        $tnBar = $tnFoo->addVariable( '$Bar', 'BAR' );
+        $tnBar->addConstant( ' Qux', 'QUX' );
+
+        $r = [];
+        self::assertNull( $root->get( 'FooQux Quux', $r ) );
+    }
+
+
+    public function testGetForPastEnd() : void {
+        $root = new TrieNodeNavigator();
+        $tnFoo = $root->addConstant( 'Foo', 'FOO' );
+        $tnBar = $tnFoo->addConstant( 'Bar', 'BAR' );
+        $tnBar->addConstant( 'Baz', 'BAZ' );
+
+        $r = [];
+        self::assertSame( 'FOO', $root->get( 'Foo', $r, true ) );
+        self::assertEmpty( $r );
+        self::assertSame( 'BAR', $root->get( 'FooBar', $r, true ) );
+        self::assertEmpty( $r );
+        self::assertSame( 'BAZ', $root->get( 'FooBarBaz', $r ) );
+        self::assertEmpty( $r );
+        self::assertNull( $root->get( 'FooBarBazQux', $r ) );
+        self::assertEmpty( $r );
+    }
+
+
+    /**
+     * @return void
+     */
+    public function testGetForUnambiguousTerminalVariable() : void {
+        $root = new TrieNodeNavigator();
+        $tnFoo = $root->linkConstant( 'Foo', 'FOO' );
+        $tnBar = $tnFoo->linkVariable( '$Bar', 'BAR' );
+        $tnBaz = $tnFoo->linkVariable( '$Baz', 'BAR' );
+        $tnBar->linkConstant( ' Qux', 'QUX' );
+        $tnBaz->linkConstant( ' Quux', 'QUUX' );
+
+        $r = [];
+        self::assertSame( 'QUX', $root->get( 'FooCorge Qux', $r, true ) );
+        self::assertCount( 1, $r );
+        self::assertSame( 'Corge', $r[ '$Bar' ] );
+    }
+
+
+    public function testGetWithVariables() : void {
+        $root = new TrieNodeNavigator();
+        $tnFoo = $root->addConstant( 'Foo', 'FOO' );
+        $tnBar = $tnFoo->addVariable( '$Bar', 'BAR' );
+        $tnBar->addConstant( ' Baz', 'BAZ' );
+
+        $r = [];
+        self::assertSame( 'FOO', $root->get( 'Foo', $r, true ) );
+        self::assertEmpty( $r );
+
+        $r = [];
+        self::assertSame( 'BAR', $root->get( 'FooQux', $r, true ) );
+        self::assertCount( 1, $r );
+        self::assertSame( 'Qux', $r[ '$Bar' ] );
+
+        $r = [];
+        self::assertSame( 'BAZ', $root->get( 'FooQux Baz', $r, true ) );
+        self::assertCount( 1, $r );
+        self::assertSame( 'Qux', $r[ '$Bar' ] );
+    }
+
+
+    public function testHas() : void {
+        $tnRoot = new TrieNodeNavigator();
+        $tnFoo = $tnRoot->linkConstant( 'Foo', 'FOO' );
+        $tnBar = $tnFoo->linkVariable( '$Bar', 'BAR' );
+        $tnBar->linkConstant( 'Baz', 'BAZ' );
+
+        self::assertTrue( $tnRoot->has( 'Foo', true, false ) );
+        self::assertTrue( $tnRoot->has( 'Foo$Bar', true, false ) );
+        self::assertFalse( $tnRoot->has( 'Foo$Bar', false, false ) );
+        self::assertTrue( $tnRoot->has( 'Foo${Bar}Baz', true, false ) );
+        self::assertFalse( $tnRoot->has( 'Foo$Qux', true, false ) );
+        self::assertTrue( $tnRoot->has( 'FooQuux', true, true ) );
+    }
+
+
+    public function testHasWithVariables() : void {
+        $root = new TrieNodeNavigator();
+        $tnFoo = $root->addConstant( 'Foo', 'FOO' );
+        $tnBar = $tnFoo->addVariable( '$Bar', 'BAR' );
+        $tnBar->addConstant( ' Baz', 'BAZ' );
+        $tnBar->addConstant( ' Qux', 'QUX' );
+
+        $r = [];
+        self::assertSame( 'FOO', $root->get( 'Foo', $r, true ) );
+        self::assertSame( 'BAR', $root->get( 'FooQuux', $r, true ) );
+        self::assertSame( 'BAZ', $root->get( 'FooQuux Baz', $r, true ) );
+        self::assertSame( 'QUX', $root->get( 'FooQuux Qux', $r, true ) );
+
+        self::assertTrue( $root->has( 'Foo${Bar} Baz', true, false ) );
+        self::assertTrue( $root->has( 'Foo${Bar} Qux', true, false ) );
+        self::assertFalse( $root->has( 'Foo${Bar} Quux', true, false ) );
+        self::assertFalse( $root->has( 'FooQux', true, false ) );
+
+        self::assertFalse( $root->has( 'Foo${Bar} Baz', true, true ) );
+        self::assertFalse( $root->has( 'Foo${Bar} Qux', true, true ) );
+        self::assertFalse( $root->has( 'Foo${Bar} Quux', true, true ) );
+        self::assertTrue( $root->has( 'FooQux', true, true ) );
+
+    }
+
+
+    public function testSetForExisting() : void {
         $tnRoot = new TrieNodeNavigator();
         $tnFoo = $tnRoot->linkConstant( 'Foo', 'FOO' );
         $tnBar = $tnFoo->linkVariable( '$Bar', 'BAR' );
         $tnBaz = $tnBar->linkConstant( 'Baz', 'BAZ' );
 
-        $stPath = 'Foo';
-        self::assertSame( $tnFoo, $tnRoot->getClosestForSet( $stPath, false ) );
-        self::assertSame( '', $stPath );
+        $tnRoot->set( 'Foo', 'OOF', true, true );
+        self::assertSame( $tnFoo, $tnRoot->rConstants[ 'Foo' ] );
+        self::assertSame( 'OOF', $tnRoot->rConstants[ 'Foo' ]->xValue );
 
-        $stPath = 'Foo$Bar';
-        self::assertSame( $tnFoo, $tnRoot->getClosestForSet( $stPath, false ) );
-        self::assertSame( '$Bar', $stPath );
+        $tnRoot->set( 'Foo$Bar', 'RAB', true, true );
+        self::assertSame( $tnBar, $tnRoot->rConstants[ 'Foo' ]->rVariables[ '$Bar' ] );
+        self::assertSame( 'RAB', $tnRoot->rConstants[ 'Foo' ]->rVariables[ '$Bar' ]->xValue );
 
-        $stPath = 'Foo$Bar';
-        $tn = $tnRoot->getClosestForSet( $stPath, true );
-        self::assertSame( $tnBar, $tn );
-        self::assertSame( '', $stPath );
+        $tnRoot->set( 'Foo${Bar}Baz', 'ZAB', true, true );
+        self::assertSame( $tnBaz, $tnRoot->rConstants[ 'Foo' ]->rVariables[ '$Bar' ]->rConstants[ 'Baz' ] );
+        self::assertSame( 'ZAB', $tnRoot->rConstants[ 'Foo' ]->rVariables[ '$Bar' ]->rConstants[ 'Baz' ]->xValue );
 
-        $stPath = 'Foo${Bar}Baz';
-        $tn = $tnRoot->getClosestForSet( $stPath, true );
-        self::assertSame( $tnBaz, $tn );
-        self::assertSame( '', $stPath );
+        self::expectException( InvalidArgumentException::class );
+        $tnRoot->set( 'Foo${Bar}Baz', 'QUX', true );
+    }
 
-        $stPath = 'Foo${Baz}Qux';
-        $tn = $tnRoot->getClosestForSet( $stPath, true );
-        self::assertSame( $tnFoo, $tn );
-        self::assertSame( '${Baz}Qux', $stPath );
 
+    public function testSetForNew() : void {
+        $tnRoot = new TrieNodeNavigator();
+        $tnFoo = $tnRoot->set( 'Foo', 'FOO', true, true );
+
+        self::assertSame( 'FOO', $tnRoot->rConstants[ 'Foo' ]->xValue );
+        self::assertSame( $tnFoo, $tnRoot->rConstants[ 'Foo' ] );
+
+        $tnBar = $tnRoot->set( 'Foo$Bar', 'BAR', true, true );
+        self::assertSame( 'BAR', $tnRoot->rConstants[ 'Foo' ]->rVariables[ '$Bar' ]->xValue );
+        self::assertSame( $tnBar, $tnRoot->rConstants[ 'Foo' ]->rVariables[ '$Bar' ] );
+
+        $tnBaz = $tnRoot->set( 'Foo${Bar}Baz', 'BAZ', true, true );
+        self::assertSame( 'BAZ', $tnRoot->rConstants[ 'Foo' ]->rVariables[ '$Bar' ]->rConstants[ 'Baz' ]->xValue );
+        self::assertSame( $tnBaz, $tnRoot->rConstants[ 'Foo' ]->rVariables[ '$Bar' ]->rConstants[ 'Baz' ] );
+
+        $tnQux = $tnRoot->set( 'Foo${Bar}$Qux', 'QUX', true, true );
+        self::assertSame( 'QUX', $tnRoot->rConstants[ 'Foo' ]->rVariables[ '$Bar' ]->rVariables[ '$Qux' ]->xValue );
+        self::assertSame( $tnQux, $tnRoot->rConstants[ 'Foo' ]->rVariables[ '$Bar' ]->rVariables[ '$Qux' ] );
+
+        $tnQuux = $tnRoot->set( '$Quux', 'QUUX', true, true );
+        self::assertSame( 'QUUX', $tnRoot->rVariables[ '$Quux' ]->xValue );
+        self::assertSame( $tnQuux, $tnRoot->rVariables[ '$Quux' ] );
+    }
+
+
+    public function testUnsetForConstants() : void {
+        $root = new TrieNodeNavigator();
+        $tnFoo = $root->addConstant( 'Foo', 'FOO' );
+        $tnBar = $tnFoo->addConstant( 'Bar', 'BAR' );
+        $tnBar->addConstant( 'Baz', 'BAZ' );
+        $tnBar->addVariable( '$Qux', 'QUX' );
+
+        $root->unset( 'FooBar', false, false );
+        self::assertNull( $root->rConstants[ 'Foo' ]->rConstants[ 'Bar' ]->xValue );
+        self::assertSame( 'BAZ', $root->rConstants[ 'Foo' ]->rConstants[ 'Bar' ]->rConstants[ 'Baz' ]->xValue );
+        self::assertSame( 'QUX', $root->rConstants[ 'Foo' ]->rConstants[ 'Bar' ]->rVariables[ '$Qux' ]->xValue );
+    }
+
+
+    public function testUnsetForNotSet() : void {
+        $tnRoot = new TrieNodeNavigator( 'BAZ' );
+        $tnFoo = $tnRoot->linkConstant( 'Foo', 'FOO' );
+        $tnFoo->linkConstant( 'Bar', 'BAR' );
+
+        self::assertSame( 'BAZ', $tnRoot->xValue );
+        self::assertSame( 'FOO', $tnRoot->rConstants[ 'Foo' ]->xValue );
+        self::assertSame( 'BAR', $tnRoot->rConstants[ 'Foo' ]->rConstants[ 'Bar' ]->xValue );
+
+        $tnRoot->unset( 'Baz', true, false );
+
+        self::assertSame( 'BAZ', $tnRoot->xValue );
+        self::assertSame( 'FOO', $tnRoot->rConstants[ 'Foo' ]->xValue );
+        self::assertSame( 'BAR', $tnRoot->rConstants[ 'Foo' ]->rConstants[ 'Bar' ]->xValue );
+
+        $tnRoot->unset( '', true, false );
+
+        self::assertNull( $tnRoot->xValue );
+        self::assertSame( 'FOO', $tnRoot->rConstants[ 'Foo' ]->xValue );
+        self::assertSame( 'BAR', $tnRoot->rConstants[ 'Foo' ]->rConstants[ 'Bar' ]->xValue );
+    }
+
+
+    public function testUnsetForPrune() : void {
+        $tnRoot = new TrieNodeNavigator();
+        $tnFoo = $tnRoot->linkConstant( 'Foo', 'FOO' );
+        $tnBar = $tnFoo->linkConstant( 'Bar', 'BAR' );
+        $tnBar->linkConstant( 'Baz', 'BAZ' );
+
+        $tnRoot->unset( 'FooBar', true, true );
+        self::assertSame( 'FOO', $tnRoot->rConstants[ 'Foo' ]->xValue );
+        self::assertArrayNotHasKey( 'Bar', $tnRoot->rConstants[ 'Foo' ]->rConstants );
+    }
+
+
+    public function testUnsetForPrune2() : void {
+        $root = new TrieNodeNavigator();
+        $tnFoo = $root->linkConstant( 'Foo', 'FOO' );
+        $tnBar = $tnFoo->linkConstant( 'Bar', 'BAR' );
+        $tnBar->linkConstant( 'Baz', 'BAZ' );
+        $tnBar->linkVariable( '$Qux', 'QUX' );
+        $tnFoo->linkConstant( 'Quux', 'QUUX' );
+
+        $root->unset( 'FooBar', true, true );
+        self::assertArrayNotHasKey( 'Bar', $root->rConstants[ 'Foo' ]->rConstants );
+    }
+
+
+    public function testUnsetForVariables() : void {
+        $tnRoot = new TrieNodeNavigator();
+        $tnFoo = $tnRoot->linkConstant( 'Foo', 'FOO' );
+        $tnBar = $tnFoo->linkVariable( '$Bar', 'BAR' );
+        $tnBar->linkConstant( 'Baz', 'BAZ' );
+        $tnBar->linkConstant( 'Qux', 'QUX' );
+
+        self::assertSame( 'FOO', $tnRoot->rConstants[ 'Foo' ]->xValue );
+        self::assertSame( 'BAR', $tnRoot->rConstants[ 'Foo' ]->rVariables[ '$Bar' ]->xValue );
+        self::assertSame( 'BAZ', $tnRoot->rConstants[ 'Foo' ]->rVariables[ '$Bar' ]->rConstants[ 'Baz' ]->xValue );
+
+        $tnRoot->unset( 'Foo$Bar', true, false );
+        self::assertSame( 'FOO', $tnRoot->rConstants[ 'Foo' ]->xValue );
+        self::assertSame( 'BAZ', $tnRoot->rConstants[ 'Foo' ]->rVariables[ '$Bar' ]->rConstants[ 'Baz' ]->xValue );
+        self::assertNull( $tnRoot->rConstants[ 'Foo' ]->rVariables[ '$Bar' ]->xValue );
+
+        $tnRoot->unset( 'Foo${Bar}Baz', true, false );
+        self::assertSame( 'FOO', $tnRoot->rConstants[ 'Foo' ]->xValue );
+        self::assertArrayNotHasKey( 'Baz', $tnRoot->rConstants[ 'Foo' ]->rVariables[ '$Bar' ]->rConstants );
+        self::assertSame( 'QUX', $tnRoot->rConstants[ 'Foo' ]->rVariables[ '$Bar' ]->rConstants[ 'Qux' ]->xValue );
+
+        $tnRoot->unset( 'Foo${Bar}Qux', true, false );
+        self::assertSame( 'FOO', $tnRoot->rConstants[ 'Foo' ]->xValue );
+        self::assertArrayNotHasKey( '$Bar', $tnRoot->rConstants[ 'Foo' ]->rVariables );
     }
 
 
@@ -114,10 +432,17 @@ final class TrieNodeNavigatorTest extends TestCase {
         $tnRoot = new TrieNodeNavigator();
         $tnFoo = $tnRoot->linkConstant( 'Foo', 'FOO' );
         $tnBar = $tnFoo->linkVariable( '$Bar', 'BAR' );
-        $tnBar->linkConstant( 'Baz', 'BAZ' );
+        $tnBaz = $tnBar->linkConstant( 'Baz', 'BAZ' );
+
+        $walk = $tnRoot->walk( 'Foo$Bar', true, false );
+        self::assertSame( 'Foo$Bar', $walk->path() );
+        self::assertSame( '', $walk->stRest );
+        self::assertSame( $tnBar, $walk->tsTail->tnTo );
+
         $walk = $tnRoot->walk( 'Foo${Bar}Baz', true, false );
         self::assertSame( 'Foo$BarBaz', $walk->path() );
         self::assertSame( '', $walk->stRest );
+        self::assertSame( $tnBaz, $walk->tsTail->tnTo );
 
         $walk = $tnRoot->walk( 'Foo${Bar}BazQux', true, false );
         self::assertSame( 'Foo$BarBaz', $walk->path() );
@@ -161,181 +486,6 @@ final class TrieNodeNavigatorTest extends TestCase {
         self::assertSame( 'Foo', $walk->path() );
         self::assertSame( '$Qux', $walk->stRest );
     }
-
-
-    /*
-     public function testAddForCommonPrefix() : void {
-        $node = new TrieNode();
-        $node->rChildren[ 'foobar' ] = new TrieNode( 'baz' );
-        $tn = $node->add( 'fooqux', 'quux' );
-        self::assertSame( 'quux', $tn->xValue );
-        self::assertSame( $tn, $node->rChildren[ 'foo' ]->rChildren[ 'qux' ] );
-        self::assertSame( 'baz', $node->rChildren[ 'foo' ]->rChildren[ 'bar' ]->xValue );
-    }
-
-
-    public function testAddForDisallowedVariable() : void {
-        $node = new TrieNode();
-        $tn = $node->add( 'foo$bar', 'baz' );
-        self::assertSame( 'baz', $tn->xValue );
-        self::assertSame( $tn, $node->rChildren[ 'foo$bar' ] );
-    }
-
-
-    public function testAddForExistingNodePrefixMatch() : void {
-        $node = new TrieNode();
-        $node->rChildren[ 'foo' ] = new TrieNode( 'bar' );
-        $tn = $node->add( 'fooqux', 'baz' );
-        self::assertSame( 'baz', $tn->xValue );
-        self::assertSame( 'bar', $node->rChildren[ 'foo' ]->xValue );
-        self::assertArrayHasKey( 'qux', $node->rChildren[ 'foo' ]->rChildren );
-        self::assertSame( $tn, $node->rChildren[ 'foo' ]->rChildren[ 'qux' ] );
-    }
-
-
-    public function testAddForIntermediateDecoyVariable() : void {
-        $node = new TrieNode();
-        $tn = $node->add( 'foo$ bar baz', 'BAZ', true );
-        self::assertSame( 'BAZ', $tn->xValue );
-        self::assertArrayHasKey( 'foo$ bar baz', $node->rChildren );
-        self::assertSame( $tn, $node->rChildren[ 'foo$ bar baz' ] );
-    }
-
-
-    public function testAddForIntermediateVariable() : void {
-        $node = new TrieNode();
-        $tn = $node->add( 'foo${bar}baz', 'BAZ', true );
-        self::assertSame( 'BAZ', $tn->xValue );
-        self::assertArrayHasKey( 'foo', $node->rChildren );
-        self::assertArrayHasKey( '$bar', $node->rChildren[ 'foo' ]->rVariableChildren );
-        self::assertSame( $tn, $node->rChildren[ 'foo' ]->rVariableChildren[ '$bar' ]->rChildren[ 'baz' ] );
-    }
-
-
-    public function testAddForLeadingVariable() : void {
-        $node = new TrieNode();
-        $tn = $node->add( '$foo:bar', 'BAR', true );
-        self::assertSame( 'BAR', $tn->xValue );
-        self::assertSame( $tn, $node->rVariableChildren[ '$foo' ]->rChildren[ ':bar' ] );
-    }
-
-
-    public function testAddForNested() : void {
-        $tnRoot = new TrieNode();
-        $tnFoo = new TrieNode( 'FOO' );
-        $tnBar = new TrieNode( 'BAR' );
-        $tnBaz = new TrieNode( 'BAZ' );
-        $tnRoot->rChildren[ 'foo' ] = $tnFoo;
-        $tnFoo->rChildren[ 'bar' ] = $tnBar;
-        $tnBar->rChildren[ 'baz' ] = $tnBaz;
-        $tnQux = $tnRoot->add( 'foobarbazqux', 'QUX' );
-        self::assertSame( 'QUX', $tnQux->xValue );
-        self::assertSame( $tnQux, $tnBaz->rChildren[ 'qux' ] );
-    }
-
-
-    public function testAddForNewNodePrefixMatch() : void {
-        $node = new TrieNode();
-        $node->rChildren[ 'foobar' ] = new TrieNode( 'baz' );
-        $tn = $node->add( 'foo', 'qux' );
-        self::assertSame( 'qux', $tn->xValue );
-        self::assertSame( $tn, $node->rChildren[ 'foo' ] );
-        self::assertSame( 'baz', $node->rChildren[ 'foo' ]->rChildren[ 'bar' ]->xValue );
-    }
-
-
-    public function testAddForNoMatch() : void {
-        $node = new TrieNode();
-        $tn = $node->add( 'foo', 'bar' );
-        self::assertSame( 'bar', $node->rChildren[ 'foo' ]->xValue );
-        self::assertSame( $tn, $node->rChildren[ 'foo' ] );
-
-        $node = new TrieNode();
-        $node2 = new TrieNode( 'baz' );
-        $node->add( 'bar', $node2 );
-        self::assertArrayHasKey( 'bar', $node->rChildren );
-        self::assertSame( $node2, $node->rChildren[ 'bar' ] );
-    }
-
-
-    public function testAddForPartiallyNested() : void {
-        $tnRoot = new TrieNode();
-        $tnFoo = new TrieNode( 'FOO' );
-        $tnBar = new TrieNode( 'BAR' );
-        $tnBaz = new TrieNode( 'BAZ' );
-        $tnRoot->rChildren[ 'foo' ] = $tnFoo;
-        $tnFoo->rChildren[ 'bar' ] = $tnBar;
-        $tnBar->rChildren[ 'baz' ] = $tnBaz;
-        $tnQux = $tnRoot->add( 'foobarqux', 'QUX' );
-        self::assertSame( 'QUX', $tnQux->xValue );
-        self::assertSame( $tnQux, $tnBar->rChildren[ 'qux' ] );
-        self::assertSame( 'BAZ', $tnBar->rChildren[ 'baz' ]->xValue );
-    }
-
-
-    public function testAddForSelf() : void {
-        $node = new TrieNode();
-        $tn = $node->add( '', 'bar' );
-        self::assertSame( 'bar', $tn->xValue );
-        self::assertSame( $tn, $node );
-
-        $node = new TrieNode( 'foo' );
-        self::expectException( InvalidArgumentException::class );
-        $node->add( '', 'bar' );
-    }
-
-
-    public function testAddVariableChild() : void {
-        $node = new TrieNode();
-        $tnFoo = $node->add( '$foo', null, true );
-        $tnBar = $tnFoo->add( 'bar', 'BAR', true );
-        self::assertSame( 'BAR', $tnBar->xValue );
-        self::assertSame( $tnBar, $node->rVariableChildren[ '$foo' ]->rChildren[ 'bar' ] );
-    }
-
-
-    public function testAddVariableChildForDuplicate() : void {
-        $node = new TrieNode();
-        $tn = $node->addVariableChild( '$foo', '', 'bar', false );
-        self::assertSame( 'bar', $tn->xValue );
-        self::assertSame( $tn, $node->rVariableChildren[ '$foo' ] );
-
-        self::expectException( InvalidArgumentException::class );
-        $node->addVariableChild( '$foo', '', 'qux', false );
-    }
-
-
-    public function testAddVariableChildForMultiple() : void {
-        $node = new TrieNode();
-        $tn = $node->addVariableChild( '$foo', '$bar', 'baz', false );
-        self::assertSame( 'baz', $tn->xValue );
-        self::assertSame( $tn, $node->rVariableChildren[ '$foo' ]->rVariableChildren[ '$bar' ] );
-    }
-
-
-    public function testGetWithVariable() : void {
-        $tnRoot = new TrieNode();
-        $tnFoo = new TrieNode( 'FOO' );
-        $tnBar = new TrieNode( 'BAR' );
-        $tnBaz = new TrieNode( 'BAZ' );
-        $tnRoot->rChildren[ 'foo' ] = $tnFoo;
-        $tnFoo->rVariableChildren[ '$bar' ] = $tnBar;
-        $tnBar->rChildren[ 'baz' ] = $tnBaz;
-
-        $stPath = 'foo$bar';
-        self::assertSame( $tnFoo, $tnRoot->get( $stPath ) );
-        self::assertSame( '$bar', $stPath );
-    }
-
-
-    public function testSet() : void {
-        $node = new TrieNode();
-        $node->rChildren[ 'foo' ] = new TrieNode( 'FOO' );
-        $tn = $node->set( 'foo', 'bar' );
-        self::assertSame( 'bar', $tn->xValue );
-        self::assertSame( $tn, $node->rChildren[ 'foo' ] );
-    }
-    */
 
 
 }

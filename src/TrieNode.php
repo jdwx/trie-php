@@ -169,7 +169,7 @@ class TrieNode {
         # Exact match. We can (try to) set the existing value.
         if ( $i_stKey === $stKey ) {
             $tnc = $this->constantEx( $i_stKey );
-            $tnc->set( $i_xValue, $i_bAllowOverwrite );
+            $tnc->setValue( $i_xValue, $i_bAllowOverwrite );
             return $tnc;
         }
 
@@ -203,8 +203,11 @@ class TrieNode {
 
 
     public function constantEx( string $i_stKey ) : static {
-        /** @phpstan-ignore-next-line */
-        return $this->rConstants[ $i_stKey ];
+        if ( isset( $this->rConstants[ $i_stKey ] ) ) {
+            /** @phpstan-ignore-next-line */
+            return $this->rConstants[ $i_stKey ];
+        }
+        throw new InvalidArgumentException( "Constant node at '{$i_stKey}' does not exist" );
     }
 
 
@@ -335,7 +338,7 @@ class TrieNode {
     }
 
 
-    public function set( mixed $i_xValue, bool $i_bAllowOverwrite = false ) : void {
+    public function setValue( mixed $i_xValue, bool $i_bAllowOverwrite = false ) : void {
         if ( $i_bAllowOverwrite || is_null( $this->xValue ) ) {
             $this->xValue = static::asNotNode( $i_xValue );
             return;
@@ -399,7 +402,7 @@ class TrieNode {
     }
 
 
-    public function unset() : void {
+    public function unsetValue() : void {
         $this->xValue = null;
     }
 
@@ -411,8 +414,11 @@ class TrieNode {
 
 
     public function variableEx( string $i_stPath ) : static {
-        /** @phpstan-ignore-next-line */
-        return $this->rVariables[ $i_stPath ];
+        if ( isset( $this->rVariables[ $i_stPath ] ) ) {
+            /** @phpstan-ignore-next-line */
+            return $this->rVariables[ $i_stPath ];
+        }
+        throw new InvalidArgumentException( "Variable node at '{$i_stPath}' does not exist" );
     }
 
 

@@ -10,112 +10,59 @@ namespace JDWX\Trie;
 class TrieNodeNavigator extends TrieNode {
 
 
-    /*
-
-
-    public function addInner( string $i_stPath, mixed $i_xValue, bool $i_bAllowVariables,
-                              bool   $i_bAllowOverwrite ) : static {
-        # If the path is empty, you are adding a value to the current node.
-        if ( '' === $i_stPath ) {
-            if ( null === $this->xValue || $i_bAllowOverwrite ) {
-                # We can overwrite the value.
-                $this->xValue = self::asNotNode( $i_xValue );
-                return $this;
+    public function add( string $i_stPath, mixed $i_xValue, bool $i_bAllowVariables = false ) : static {
+        $walk = $this->walk( $i_stPath, $i_bAllowVariables, false );
+        if ( is_null( $walk->tsTail ) ) {
+            $uPos = $i_bAllowVariables ? strpos( $i_stPath, '$' ) : false;
+            if ( $uPos === false ) {
+                return $this->addConstant( $i_stPath, $i_xValue );
             }
-
-            # Otherwise, this is a collision, and keys must be unique.
-            throw new InvalidArgumentException( 'Key already exists.' );
-        }
-
-        if ( $i_bAllowVariables ) {
-            if ( str_starts_with( $i_stPath, '$' ) ) {
-                # This is a variable path.
-                [ $nstVarName, $stPath ] = self::extractVariableName( $i_stPath );
-                if ( is_string( $nstVarName ) && is_string( $stPath ) ) {
-                    return $this->addVariableChildDeep( $nstVarName, $stPath, $i_xValue, $i_bAllowOverwrite );
-                }
+            $stConstant = substr( $i_stPath, 0, $uPos );
+            [ $stVarName, $stRest ] = static::extractVariableName( substr( $i_stPath, $uPos ) );
+            assert( is_string( $stVarName ) );
+            assert( is_string( $stRest ) );
+            $node = $this;
+            if ( ! empty( $stConstant ) ) {
+                $node = $node->addConstant( $stConstant, null );
             }
-
-            if ( str_contains( $i_stPath, '$' ) ) {
-                # There may be a variable later in the path, but it is not at the start.
-                $uPos = strpos( $i_stPath, '$' );
-                $stPathBeforeVariable = substr( $i_stPath, 0, $uPos );
-                $stPathAfterVariable = substr( $i_stPath, $uPos );
-                [ $stVarName, $stPathAfterVariable ] = self::extractVariableName( $stPathAfterVariable );
-                if ( is_string( $stVarName ) && is_string( $stPathAfterVariable ) ) {
-                    # We have a variable name.
-                    $tnChild = $this->addInner( $stPathBeforeVariable, null, false, $i_bAllowOverwrite );
-                    return $tnChild->addVariableChildDeep( $stVarName, $stPathAfterVariable, $i_xValue,
-                        $i_bAllowOverwrite );
-                }
-                # It wasn't actually a variable name, so continue.
+            if ( empty( $stRest ) ) {
+                return $node->addVariable( $stVarName, $i_xValue );
             }
+            $node = $node->addVariable( $stVarName, null );
+            return $node->addConstant( $stRest, $i_xValue );
         }
-
-        [ $stPrefix, $stMatch ] = $this->matchConstantPrefix( $i_stPath );
-        if ( ! is_string( $stPrefix ) ) {
-            # No match, so we can add the new child.
-            $this->rConstants[ $i_stPath ] = self::asNode( $i_xValue );
-            return $this->rConstants[ $i_stPath ];
-        }
-        assert( is_string( $stMatch ) );
-
-        # There is a prefix match. There are three cases to deal with:
-        # 1. A common prefix (e.g., "FooBar" and "FooQux")
-        # 2. A prefix match with the existing child (e.g., "Foo" and "FooBar")
-        # 3. A prefix match with the new child (e.g., "FooBar" and "Foo")
-
-        # Case 1: A common prefix.
-        if ( $stMatch !== $stPrefix && $stPrefix !== $i_stPath ) {
-            # Create a new child node for the common prefix.
-            $tnSplit = new TrieNodeNavigator( null, $this );
-            $this->rConstants[ $stPrefix ] = $tnSplit;
-            $tnSplit->addInner( substr( $stMatch, strlen( $stPrefix ) ), $this->rConstants[ $stMatch ],
-                $i_bAllowVariables, $i_bAllowOverwrite );
-            unset( $this->rConstants[ $stMatch ] );
-            return $tnSplit->addInner( substr( $i_stPath, strlen( $stPrefix ) ), self::asNode( $i_xValue ),
-                $i_bAllowVariables, $i_bAllowOverwrite );
-        }
-
-        # Case 2: Existing child is a prefix match.
-        if ( $stMatch === $stPrefix ) {
-            # Add the new child to the existing child.
-            $i_stPath = substr( $i_stPath, strlen( $stPrefix ) );
-            return $this->constant( $stMatch )->addInner( $i_stPath, $i_xValue, $i_bAllowVariables,
-                $i_bAllowOverwrite );
-        }
-
-        # Case 3: New child is a prefix match.
-        assert( $stPrefix === $i_stPath );
-        $tnChild = $this->rConstants[ $stMatch ];
-        unset( $this->rConstants[ $stMatch ] );
-        $tnNew = $this->addInner( $stPrefix, $i_xValue, $i_bAllowVariables, $i_bAllowOverwrite );
-        $tnNew->addInner( substr( $stMatch, strlen( $stPrefix ) ), $tnChild, $i_bAllowVariables, $i_bAllowOverwrite );
-        return $tnNew;
+        return static::cast( $walk->tsTail->tnTo )->add( $walk->stRest, $i_xValue, $i_bAllowVariables );
     }
 
 
-    public function addVariableChildDeep( string $i_stVarName, string $i_stPath, mixed $i_xValue,
-                                          bool   $i_bAllowOverwrite ) : static {
-        if ( isset( $this->rVariables[ $i_stVarName ] ) ) {
-            # We already have a variable child with this name.
-            return $this->variable( $i_stVarName )->addInner( $i_stPath, $i_xValue,
-                true, $i_bAllowOverwrite );
+    /** @param array<string, string> &$o_rVariables */
+    public function get( string $i_stPath, array &$o_rVariables, bool $i_bAllowVariables = false ) : mixed {
+        $walk = $this->walk( $i_stPath, $i_bAllowVariables, true );
+        if ( ! empty( $walk->stRest ) ) {
+            return null;
         }
-        # Create a new child node for the variable.
-        $tnChild = new static( null, $this );
-        $this->rVariables[ $i_stVarName ] = $tnChild;
-        return $tnChild->addInner( $i_stPath, $i_xValue, true, $i_bAllowOverwrite );
+        $o_rVariables = [];
+        for ( $node = $walk->tsHead ; $node !== null ; $node = $node->tsNext ) {
+            if ( str_starts_with( $node->stEdge, '$' ) ) {
+                $o_rVariables[ $node->stEdge ] = $node->stMatch;
+            }
+        }
+        return ( $walk->tsTail->tnTo ?? $this )->xValue;
     }
 
 
-    public function setDeep( string $i_stPath, mixed $i_xValue, bool $i_bAllowVariables = false ) : TrieNode {
-        return $this->addInner( $i_stPath, $i_xValue, $i_bAllowVariables, true );
+    public function has( string $i_stPath, bool $i_bAllowVariables, bool $i_bSubstituteVariables ) : bool {
+        $walk = $this->walk( $i_stPath, $i_bAllowVariables, $i_bSubstituteVariables );
+        if ( ! empty( $walk->stRest ) ) {
+            return false;
+        }
+        $node = $walk->tsTail->tnTo ?? $this;
+        return ! is_null( $node->xValue );
     }
 
-    */
 
-    public function add( string $i_stPath, mixed $i_xValue, bool $i_bAllowVariables = false ) : TrieNode {
+    public function set( string $i_stPath, mixed $i_xValue, bool $i_bAllowVariables = false,
+                         bool   $i_bOverwrite = false ) : static {
         $walk = $this->walk( $i_stPath, $i_bAllowVariables, false );
         if ( is_null( $walk->tsTail ) ) {
             if ( str_starts_with( $i_stPath, '$' ) ) {
@@ -123,48 +70,28 @@ class TrieNodeNavigator extends TrieNode {
             }
             return $this->addConstant( $i_stPath, $i_xValue );
         }
-        return static::cast( $walk->tsTail->tnTo )->add( $walk->stRest, $i_xValue, $i_bAllowVariables );
+        if ( ! empty( $walk->stRest ) ) {
+            $tnChild = static::cast( $walk->tsTail->tnTo );
+            return $tnChild->add( $walk->stRest, $i_xValue, $i_bAllowVariables );
+        }
+        $walk->tsTail->tnTo->setValue( $i_xValue, $i_bOverwrite );
+        return static::cast( $walk->tsTail->tnTo );
     }
 
 
-    public function getClosestConstant( string &$io_stPath ) : static {
-        $tnChild = $this->getConstant( $io_stPath );
-        if ( null === $tnChild ) {
-            return $this;
+    public function unset( string $i_stPath, bool $i_bAllowVariables, bool $i_bPrune ) : void {
+        $walk = $this->walk( $i_stPath, $i_bAllowVariables, false );
+        if ( ! empty( $walk->stRest ) ) {
+            return;
         }
-        return $tnChild->getClosestConstant( $io_stPath );
-    }
-
-
-    /**
-     * Get the closest node for a given path, allowing for variable names.
-     * (Variable names are matched as literals.)
-     */
-    public function getClosestForSet( string &$io_stPath, bool $i_bAllowVariables ) : static {
-        if ( '' === $io_stPath ) {
-            # No path, so we are at the current node.
-            return $this;
+        $node = $walk->tsTail->tnTo ?? $this;
+        $node->unsetValue();
+        while ( $node?->isDead() || $i_bPrune ) {
+            $parent = $node->parent;
+            $node->prune();
+            $node = $parent;
+            $i_bPrune = false;
         }
-        $node = $this->getClosestConstant( $io_stPath );
-
-        # If variables are not allowed, then this is the end of the road.
-        if ( ! $i_bAllowVariables ) {
-            return $node;
-        }
-
-        [ $stVarName, $stPathAfterVariable ] = self::extractVariableName( $io_stPath );
-        if ( ! is_string( $stVarName ) || ! is_string( $stPathAfterVariable ) ) {
-            # Not a variable name.
-            return $node;
-        }
-
-        if ( ! isset( $node->rVariables[ $stVarName ] ) ) {
-            # No variable child with this name.
-            return $node;
-        }
-
-        $io_stPath = $stPathAfterVariable;
-        return $node->variable( $stVarName )->getClosestForSet( $io_stPath, true );
     }
 
 
@@ -207,13 +134,15 @@ class TrieNodeNavigator extends TrieNode {
                 $tnChild = $this->variableEx( $stVarName );
                 $walk = new TrieWalk();
                 $walk->append( $stVarName, $stVarName, $tnChild );
-                return $walk->merge( $tnChild->walk( $stPathAfterVariable, true, true ) );
+                return $walk->merge( $tnChild->walk( $stPathAfterVariable, true, false ) );
             }
             $walk = new TrieWalk();
             $walk->stRest = $i_stPath;
             return $walk;
         }
 
+        $rMatches = [];
+        $rPoorMatches = [];
         foreach ( $this->variables() as $stVarName => $tnChild ) {
             # Third, look for a variable match with substitution.
             [ $stVarValue, $stPathAfterVariable ] = self::extractVariableValue( $stVarName, $i_stPath );
@@ -223,13 +152,37 @@ class TrieNodeNavigator extends TrieNode {
             # We have a variable match.
             $walk = $tnChild->walk( $stPathAfterVariable, true, true );
             $walk->prepend( $stVarName, $stVarValue, $tnChild );
-            return $walk;
+            if ( '' === $walk->stRest ) {
+                $rMatches[] = $walk;
+            } else {
+                $rPoorMatches[] = $walk;
+            }
+        }
+        $uCount = count( $rMatches );
+        if ( 1 === $uCount ) {
+            return $rMatches[ 0 ];
+        }
+        if ( 0 === $uCount ) {
+            $uCount = count( $rPoorMatches );
+            if ( 1 === $uCount ) {
+                return $rPoorMatches[ 0 ];
+            }
+            if ( 0 === $uCount ) {
+                # No matches, so we are done.
+                $walk = new TrieWalk();
+                $walk->stRest = $i_stPath;
+                return $walk;
+            }
         }
 
-        $walk = new TrieWalk();
-        $walk->stRest = $i_stPath;
-        return $walk;
-
+        # Multiple matches; ambiguity is not allowed.
+        $rPaths = [];
+        foreach ( $rMatches as $walk ) {
+            $rPaths[] = $walk->path() . '|' . $walk->stRest;
+        }
+        throw new \RuntimeException(
+            'Ambiguous variable match for "' . $i_stPath . '" in ' . join( ', ', $rPaths )
+        );
     }
 
 

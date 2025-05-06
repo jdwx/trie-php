@@ -36,8 +36,22 @@ class TrieWalk {
     }
 
 
+    /**
+     * @noinspection PhpFieldImmediatelyRewrittenInspection
+     */
     public function merge( TrieWalk $i_walk ) : static {
-        $this->tsTail->tsNext = $i_walk->tsHead;
+        $tsNewTail = $i_walk->tsTail ?? $this->tsTail;
+        $tsNewHead = $this->tsHead ?? $i_walk->tsHead;
+        $tsMergeTail = $this->tsTail;
+        $tsMergeHead = $i_walk->tsHead;
+        if ( $tsMergeTail instanceof TrieStep ) {
+            $tsMergeTail->tsNext = $tsMergeHead;
+        }
+        if ( $tsMergeHead instanceof TrieStep ) {
+            $tsMergeHead->tsPrev = $tsMergeTail;
+        }
+        $this->tsHead = $tsNewHead;
+        $this->tsTail = $tsNewTail;
         $i_walk->tsHead = null;
         $i_walk->tsTail = null;
         $this->stRest .= $i_walk->stRest;

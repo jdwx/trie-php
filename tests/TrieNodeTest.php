@@ -122,6 +122,15 @@ final class TrieNodeTest extends TestCase {
     }
 
 
+    public function testConstantEx() : void {
+        $node = new TrieNode();
+        $tnFoo = $node->rConstants[ 'Foo' ] = new TrieNode( 'FOO' );
+        self::assertSame( $tnFoo, $node->constantEx( 'Foo' ) );
+        self::expectException( InvalidArgumentException::class );
+        $node->constantEx( 'Bar' );
+    }
+
+
     public function testConstants() : void {
         $node = new TrieNode();
         $tnFoo = $node->rConstants[ 'Foo' ] = new TrieNode( 'FOO' );
@@ -489,17 +498,17 @@ final class TrieNodeTest extends TestCase {
     }
 
 
-    public function testSet() : void {
+    public function testSetValue() : void {
         $node = new TrieNode();
         self::assertNull( $node->xValue );
-        $node->set( 'foo' );
+        $node->setValue( 'foo' );
         self::assertSame( 'foo', $node->xValue );
 
-        $node->set( 'bar', true );
+        $node->setValue( 'bar', true );
         self::assertSame( 'bar', $node->xValue );
 
         self::expectException( InvalidArgumentException::class );
-        $node->set( 'baz' );
+        $node->setValue( 'baz' );
     }
 
 
@@ -567,13 +576,13 @@ final class TrieNodeTest extends TestCase {
     }
 
 
-    public function testUnset() : void {
+    public function testUnsetValue() : void {
         $node = new TrieNode();
-        $node->unset();
+        $node->unsetValue();
         self::assertNull( $node->xValue );
 
         $node = new TrieNode( 'foo' );
-        $node->unset();
+        $node->unsetValue();
         self::assertNull( $node->xValue );
     }
 
@@ -585,6 +594,15 @@ final class TrieNodeTest extends TestCase {
         $node->rVariables[ '$Foo' ] = $tnFoo;
         self::assertSame( $tnFoo, $node->variable( '$Foo' ) );
         self::assertNull( $node->variable( '$Bar' ) );
+    }
+
+
+    public function testVariableEx() : void {
+        $node = new TrieNode();
+        $tnFoo = $node->rVariables[ '$Foo' ] = new TrieNode( 'FOO' );
+        self::assertSame( $tnFoo, $node->variableEx( '$Foo' ) );
+        self::expectException( InvalidArgumentException::class );
+        $node->variableEx( '$Bar' );
     }
 
 
