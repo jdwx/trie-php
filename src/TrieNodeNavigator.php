@@ -173,6 +173,7 @@ class TrieNodeNavigator extends TrieNode {
                 $walk->stRest = $i_stPath;
                 return $walk;
             }
+            $rMatches = $rPoorMatches;
         }
 
         # Multiple matches; ambiguity is not allowed.
