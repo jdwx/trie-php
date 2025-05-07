@@ -7,11 +7,13 @@ declare( strict_types = 1 );
 namespace JDWX\Trie;
 
 
-class TrieStep {
+class TrieStep extends TrieEdge {
 
 
-    public function __construct( public string    $stEdge, public string $stMatch, public TrieNode $tnTo,
-                                 public ?TrieStep $tsPrev = null, public ?TrieStep $tsNext = null ) {}
+    public function __construct( string           $stEdge, string $stMatch, TrieNode $tnTo,
+                                 public ?TrieStep $tsPrev = null, public ?TrieStep $tsNext = null ) {
+        parent::__construct( $stEdge, $stMatch, $tnTo );
+    }
 
 
 }

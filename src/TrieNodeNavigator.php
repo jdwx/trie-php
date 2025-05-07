@@ -7,84 +7,226 @@ declare( strict_types = 1 );
 namespace JDWX\Trie;
 
 
+use LogicException;
+
+
 class TrieNodeNavigator extends TrieNode {
 
 
-    public function add( string $i_stPath, mixed $i_xValue, bool $i_bAllowVariables = false ) : static {
-        $walk = $this->walk( $i_stPath, $i_bAllowVariables, false );
-        if ( is_null( $walk->tsTail ) ) {
-            $uPos = $i_bAllowVariables ? strpos( $i_stPath, '$' ) : false;
-            if ( $uPos === false ) {
-                return $this->addConstant( $i_stPath, $i_xValue );
+    /**
+     * @param string $i_stHaystack
+     * @param string $i_stNeedle
+     * @return iterable<string, string>
+     */
+    public static function listOffsetPairs( string $i_stHaystack, string $i_stNeedle ) : iterable {
+        foreach ( self::listStringOffsets( $i_stHaystack, $i_stNeedle ) as $u ) {
+            $stPrefix = substr( $i_stHaystack, 0, $u );
+            $stSuffix = substr( $i_stHaystack, $u );
+            if ( '' === $stPrefix ) {
+                continue;
             }
-            $stConstant = substr( $i_stPath, 0, $uPos );
-            [ $stVarName, $stRest ] = static::extractVariableName( substr( $i_stPath, $uPos ) );
-            assert( is_string( $stVarName ) );
-            assert( is_string( $stRest ) );
-            $node = $this;
-            if ( ! empty( $stConstant ) ) {
-                $node = $node->addConstant( $stConstant, null );
-            }
-            if ( empty( $stRest ) ) {
-                return $node->addVariable( $stVarName, $i_xValue );
-            }
-            $node = $node->addVariable( $stVarName, null );
-            return $node->addConstant( $stRest, $i_xValue );
+            yield $stPrefix => $stSuffix;
         }
-        return static::cast( $walk->tsTail->tnTo )->add( $walk->stRest, $i_xValue, $i_bAllowVariables );
+    }
+
+
+    /**
+     * @param string $i_stHaystack
+     * @param string $i_stNeedle
+     * @return iterable<int>
+     */
+    public static function listStringOffsets( string $i_stHaystack, string $i_stNeedle ) : iterable {
+        for ( $u = 0 ; $u <= strlen( $i_stHaystack ) - strlen( $i_stNeedle ) ; $u++ ) {
+            if ( str_starts_with( substr( $i_stHaystack, $u ), $i_stNeedle ) ) {
+                yield $u;
+            }
+        }
+    }
+
+
+    public function add( string $i_stPath, mixed $i_xValue, bool $i_bAllowVariables = false ) : static {
+        $match = $this->matchOne( $i_stPath, $i_bAllowVariables, false );
+        if ( is_null( $match ) ) {
+            $tnChild = $this;
+            $stRest = $i_stPath;
+        } else {
+            $tnChild = static::cast( $match->tn );
+            $stRest = $match->stRest;
+        }
+        $uPos = $i_bAllowVariables ? strpos( $stRest, '$' ) : false;
+        if ( false === $uPos ) {
+            return static::cast( $tnChild->addConstant( $stRest, $i_xValue ) );
+        }
+        $stConstant = substr( $stRest, 0, $uPos );
+        [ $stVarName, $stRest ] = static::extractVariableName( substr( $stRest, $uPos ) );
+        assert( is_string( $stVarName ) );
+        assert( is_string( $stRest ) );
+
+        if ( '' !== $stConstant ) {
+            $tnChild = $tnChild->addConstant( $stConstant, null );
+        }
+
+        if ( empty( $stRest ) ) {
+            return static::cast( $tnChild->addVariable( $stVarName, $i_xValue ) );
+        }
+        $tnChild = $tnChild->addVariable( $stVarName, null );
+        return static::cast( $tnChild->addConstant( $stRest, $i_xValue ) );
+    }
+
+
+    /**
+     * @return iterable<string, string>
+     */
+    public function findMatchesAfterVariable( string $i_stPath ) : iterable {
+        if ( ! empty( $this->rVariables ) ) {
+            throw new LogicException( 'Adjacent variables are ambiguous.' );
+        }
+        if ( '' !== $i_stPath ) {
+            yield $i_stPath => '';
+        }
+        # For each constant key, find each occurrence of it in the path.
+        # Offer each occurrence as a possible match for a variable
+        # substitution followed by this node.
+        foreach ( $this->constants() as $stKey => $tnChild ) {
+            yield from self::listOffsetPairs( $i_stPath, $stKey );
+        }
     }
 
 
     /** @param array<string, string> &$o_rVariables */
     public function get( string $i_stPath, array &$o_rVariables, bool $i_bAllowVariables = false ) : mixed {
-        $walk = $this->walk( $i_stPath, $i_bAllowVariables, true );
-        if ( ! empty( $walk->stRest ) ) {
+        $o_rVariables = [];
+        $match = $this->matchOne( $i_stPath, $i_bAllowVariables, true );
+        if ( is_null( $match ) || $match->stRest ) {
             return null;
         }
-        $o_rVariables = [];
-        for ( $node = $walk->tsHead ; $node !== null ; $node = $node->tsNext ) {
-            if ( str_starts_with( $node->stEdge, '$' ) ) {
-                $o_rVariables[ $node->stEdge ] = $node->stMatch;
+        foreach ( $match->rMatches as $stKey => $stValue ) {
+            if ( $stKey !== $stValue ) {
+                $o_rVariables[ $stKey ] = $stValue;
             }
         }
-        return ( $walk->tsTail->tnTo ?? $this )->xValue;
+        return $match->tn->xValue;
     }
 
 
     public function has( string $i_stPath, bool $i_bAllowVariables, bool $i_bSubstituteVariables ) : bool {
-        $walk = $this->walk( $i_stPath, $i_bAllowVariables, $i_bSubstituteVariables );
-        if ( ! empty( $walk->stRest ) ) {
+        $match = $this->matchOne( $i_stPath, $i_bAllowVariables, $i_bSubstituteVariables );
+        if ( is_null( $match ) ) {
             return false;
         }
-        $node = $walk->tsTail->tnTo ?? $this;
-        return ! is_null( $node->xValue );
+        if ( $match->stRest ) {
+            return false;
+        }
+        return ! is_null( $match->tn->xValue );
+    }
+
+
+    /**
+     * @param array<string, string> $i_rMatches
+     * @return iterable<TrieMatch>
+     */
+    public function match( string $i_stMatch, bool $i_bAllowVariables, bool $i_bExpandVariables,
+                           array  $i_rMatches = [] ) : iterable {
+        # We can always match nothing and treat the rest as extra.
+        if ( ! is_null( $this->xValue ) ) {
+            yield new TrieMatch( $this, $i_stMatch, $i_rMatches );
+        }
+        foreach ( $this->constants() as $stKey => $tnChild ) {
+            if ( str_starts_with( $i_stMatch, $stKey ) ) {
+                $stRest = substr( $i_stMatch, strlen( $stKey ) );
+                $rMatches = $i_rMatches + [ $stKey => $stKey ];
+                yield from $tnChild->match( $stRest, $i_bAllowVariables, $i_bExpandVariables, $rMatches );
+            }
+        }
+        if ( ! $i_bAllowVariables || empty( $this->rVariables ) ) {
+            return;
+        }
+
+        if ( ! $i_bExpandVariables ) {
+            [ $stVarName, $stPathAfterVariable ] = self::extractVariableName( $i_stMatch );
+            if ( is_string( $stVarName ) && $this->hasVariable( $stVarName ) ) {
+                assert( is_string( $stPathAfterVariable ) );
+                $rMatches = $i_rMatches + [ $stVarName => $stVarName ];
+                yield from $this->variableEx( $stVarName )->match(
+                    $stPathAfterVariable, true, false, $rMatches
+                );
+            }
+            return;
+        }
+
+        foreach ( $this->variables() as $stVarName => $tnChild ) {
+            foreach ( $tnChild->findMatchesAfterVariable( $i_stMatch ) as $stVarValue => $stSuffix ) {
+                $rMatches = $i_rMatches + [ $stVarName => $stVarValue ];
+                yield from $tnChild->match( $stSuffix, true, true, $rMatches );
+            }
+        }
+
+    }
+
+
+    public function matchOne( string $i_stMatch, bool $i_bAllowVariables, bool $i_bExpandVariables ) : ?TrieMatch {
+        $uMaxScore = 0;
+        $rMatches = [];
+        // foreach ( $this->match( $i_stMatch, $i_bAllowVariables, $i_bExpandVariables ) as $tm ) {
+        $r = iterator_to_array( $this->match( $i_stMatch, $i_bAllowVariables, $i_bExpandVariables ), false );
+        foreach ( $r as $tm ) {
+            $uScore = '' === $tm->stRest ? 1 : 0;
+            foreach ( $tm->rMatches as $stKey => $stValue ) {
+                if ( $stKey === $stValue ) {
+                    $uScore += 100000;
+                } else {
+                    $uScore += 1;
+                }
+            }
+            if ( $uScore < $uMaxScore ) {
+                continue;
+            }
+            if ( $uScore > $uMaxScore ) {
+                $rMatches = [];
+                $uMaxScore = $uScore;
+            }
+            $rMatches[] = $tm;
+        }
+        if ( empty( $rMatches ) ) {
+            return null;
+        }
+        if ( 1 === count( $rMatches ) ) {
+            return $rMatches[ 0 ];
+        }
+
+        $rPaths = [];
+        foreach ( $rMatches as $tm ) {
+            $stPath = $tm->path() . ( '' === $tm->stRest ? '' : "|{$tm->stRest}" );
+            $rPaths[] = $stPath;
+        }
+        throw new \RuntimeException(
+            'Ambiguous variable match for "' . $i_stMatch . '" in: ' .
+            join( ', ', $rPaths )
+        );
     }
 
 
     public function set( string $i_stPath, mixed $i_xValue, bool $i_bAllowVariables = false,
                          bool   $i_bOverwrite = false ) : static {
-        $walk = $this->walk( $i_stPath, $i_bAllowVariables, false );
-        if ( is_null( $walk->tsTail ) ) {
-            if ( str_starts_with( $i_stPath, '$' ) ) {
-                return $this->addVariable( $i_stPath, $i_xValue );
-            }
-            return $this->addConstant( $i_stPath, $i_xValue );
+        $match = $this->matchOne( $i_stPath, $i_bAllowVariables, false );
+        if ( is_null( $match ) ) {
+            return $this->add( $i_stPath, $i_xValue, $i_bAllowVariables );
         }
-        if ( ! empty( $walk->stRest ) ) {
-            $tnChild = static::cast( $walk->tsTail->tnTo );
-            return $tnChild->add( $walk->stRest, $i_xValue, $i_bAllowVariables );
+        $tnChild = static::cast( $match->tn );
+        if ( ! empty( $match->stRest ) ) {
+            return $tnChild->add( $match->stRest, $i_xValue, $i_bAllowVariables );
         }
-        $walk->tsTail->tnTo->setValue( $i_xValue, $i_bOverwrite );
-        return static::cast( $walk->tsTail->tnTo );
+        $tnChild->setValue( $i_xValue, $i_bOverwrite );
+        return $tnChild;
     }
 
 
     public function unset( string $i_stPath, bool $i_bAllowVariables, bool $i_bPrune ) : void {
-        $walk = $this->walk( $i_stPath, $i_bAllowVariables, false );
-        if ( ! empty( $walk->stRest ) ) {
+        $match = $this->matchOne( $i_stPath, $i_bAllowVariables, false );
+        if ( is_null( $match ) || $match->stRest ) {
             return;
         }
-        $node = $walk->tsTail->tnTo ?? $this;
+        $node = static::cast( $match->tn );
         $node->unsetValue();
         while ( $node?->isDead() || $i_bPrune ) {
             $parent = $node->parent;
@@ -92,98 +234,6 @@ class TrieNodeNavigator extends TrieNode {
             $node = $parent;
             $i_bPrune = false;
         }
-    }
-
-
-    public function walk( string $i_stPath, bool $i_bAllowVariables, bool $i_bSubstituteVariables ) : TrieWalk {
-
-        # Nothing left.
-        if ( '' === $i_stPath ) {
-            return new TrieWalk();
-        }
-
-        # First, look for a constant match.
-        [ $stPrefix, $stKey, $stRest ] = $this->matchConstantPrefix( $i_stPath );
-        if ( is_string( $stKey ) ) {
-            assert( is_string( $stRest ) );
-            assert( is_string( $stPrefix ) );
-            $tnChild = $this->constantEx( $stKey );
-            if ( $stKey === $stPrefix ) {
-                $walkRest = $tnChild->walk( $stRest, $i_bAllowVariables, $i_bSubstituteVariables );
-                $walkRest->prepend( $stKey, $stPrefix, $tnChild );
-                return $walkRest;
-            }
-            $walk = new TrieWalk();
-            $walk->stRest = $stPrefix . $stRest;
-            return $walk;
-        }
-
-        if ( ! $i_bAllowVariables ) {
-            # No variables allowed, so we are done.
-            $walk = new TrieWalk();
-            $walk->stRest = $i_stPath;
-            return $walk;
-        }
-
-        if ( ! $i_bSubstituteVariables ) {
-            # Second, look for a variable match without substitution.
-            [ $stVarName, $stPathAfterVariable ] = self::extractVariableName( $i_stPath );
-            if ( is_string( $stVarName ) && isset( $this->rVariables[ $stVarName ] ) ) {
-                assert( is_string( $stPathAfterVariable ) );
-                # We have a variable match.
-                $tnChild = $this->variableEx( $stVarName );
-                $walk = new TrieWalk();
-                $walk->append( $stVarName, $stVarName, $tnChild );
-                return $walk->merge( $tnChild->walk( $stPathAfterVariable, true, false ) );
-            }
-            $walk = new TrieWalk();
-            $walk->stRest = $i_stPath;
-            return $walk;
-        }
-
-        $rMatches = [];
-        $rPoorMatches = [];
-        foreach ( $this->variables() as $stVarName => $tnChild ) {
-            # Third, look for a variable match with substitution.
-            [ $stVarValue, $stPathAfterVariable ] = self::extractVariableValue( $stVarName, $i_stPath );
-            if ( ! is_string( $stVarValue ) ) {
-                continue;
-            }
-            # We have a variable match.
-            $walk = $tnChild->walk( $stPathAfterVariable, true, true );
-            $walk->prepend( $stVarName, $stVarValue, $tnChild );
-            if ( '' === $walk->stRest ) {
-                $rMatches[] = $walk;
-            } else {
-                $rPoorMatches[] = $walk;
-            }
-        }
-        $uCount = count( $rMatches );
-        if ( 1 === $uCount ) {
-            return $rMatches[ 0 ];
-        }
-        if ( 0 === $uCount ) {
-            $uCount = count( $rPoorMatches );
-            if ( 1 === $uCount ) {
-                return $rPoorMatches[ 0 ];
-            }
-            if ( 0 === $uCount ) {
-                # No matches, so we are done.
-                $walk = new TrieWalk();
-                $walk->stRest = $i_stPath;
-                return $walk;
-            }
-            $rMatches = $rPoorMatches;
-        }
-
-        # Multiple matches; ambiguity is not allowed.
-        $rPaths = [];
-        foreach ( $rMatches as $walk ) {
-            $rPaths[] = $walk->path() . '|' . $walk->stRest;
-        }
-        throw new \RuntimeException(
-            'Ambiguous variable match for "' . $i_stPath . '" in ' . join( ', ', $rPaths )
-        );
     }
 
 

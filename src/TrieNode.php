@@ -179,8 +179,8 @@ class TrieNode {
 
 
     public function addVariable( string $i_stKey, mixed $i_xValue, bool $i_bAllowOverwrite = false ) : static {
-        if ( isset( $this->rVariables[ $i_stKey ] ) &&
-            ! is_null( $this->rVariables[ $i_stKey ]->xValue ) && ! $i_bAllowOverwrite ) {
+        $var = $this->variable( $i_stKey );
+        if ( ! is_null( $var?->xValue ) && ! $i_bAllowOverwrite ) {
             throw new InvalidArgumentException( "Variable node at '{$i_stKey}' already has a value" );
         }
         $var = $this->variable( $i_stKey );
@@ -203,7 +203,7 @@ class TrieNode {
 
 
     public function constantEx( string $i_stKey ) : static {
-        if ( isset( $this->rConstants[ $i_stKey ] ) ) {
+        if ( $this->hasConstant( $i_stKey ) ) {
             /** @phpstan-ignore-next-line */
             return $this->rConstants[ $i_stKey ];
         }
@@ -263,13 +263,23 @@ class TrieNode {
     }
 
 
+    public function hasConstant( string $i_stKey ) : bool {
+        return isset( $this->rConstants[ $i_stKey ] );
+    }
+
+
+    public function hasVariable( string $i_stKey ) : bool {
+        return isset( $this->rVariables[ $i_stKey ] );
+    }
+
+
     public function isDead() : bool {
         return is_null( $this->xValue ) && empty( $this->rConstants ) && empty( $this->rVariables );
     }
 
 
     public function linkConstant( string $i_stKey, mixed $tnc ) : static {
-        if ( isset( $this->rConstants[ $i_stKey ] ) ) {
+        if ( $this->hasConstant( $i_stKey ) ) {
             throw new InvalidArgumentException( "Constant node at '{$i_stKey}' already exists" );
         }
         if ( ! $tnc instanceof static ) {
@@ -282,7 +292,7 @@ class TrieNode {
 
 
     public function linkVariable( string $i_stVarName, mixed $tnv ) : static {
-        if ( isset( $this->rVariables[ $i_stVarName ] ) ) {
+        if ( $this->hasVariable( $i_stVarName ) ) {
             throw new InvalidArgumentException( "Variable node at '{$i_stVarName}' already exists" );
         }
         if ( ! $tnv instanceof static ) {
@@ -315,7 +325,7 @@ class TrieNode {
         if ( is_null( $stVarName ) ) {
             return [ null, null ];
         }
-        if ( ! isset( $this->rVariables[ $stVarName ] ) ) {
+        if ( ! $this->hasVariable( $stVarName ) ) {
             return [ null, null ];
         }
         return [ $stVarName, $stRest ];
@@ -414,7 +424,7 @@ class TrieNode {
 
 
     public function variableEx( string $i_stPath ) : static {
-        if ( isset( $this->rVariables[ $i_stPath ] ) ) {
+        if ( $this->hasVariable( $i_stPath ) ) {
             /** @phpstan-ignore-next-line */
             return $this->rVariables[ $i_stPath ];
         }
