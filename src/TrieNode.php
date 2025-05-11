@@ -38,7 +38,7 @@ class TrieNode {
     public array $rVariables = [];
 
 
-    final public function __construct( public mixed $xValue = null, public ?TrieNode $parent = null ) {}
+    final public function __construct( public mixed $xValue, public ?TrieNode $parent ) {}
 
 
     public static function asNode( mixed $i_xValue, ?TrieNode $parent = null ) : static {
@@ -157,7 +157,7 @@ class TrieNode {
     }
 
 
-    public function addConstant( string $i_stKey, mixed $i_xValue, bool $i_bAllowOverwrite = false ) : static {
+    public function addConstant( string $i_stKey, mixed $i_xValue, bool $i_bAllowOverwrite ) : static {
         [ $stPrefix, $stKey, $stRest ] = $this->matchConstantPrefix( $i_stKey );
         if ( ! is_string( $stPrefix ) ) {
             # No match. Add the new constant directly.
@@ -178,7 +178,7 @@ class TrieNode {
     }
 
 
-    public function addVariable( string $i_stKey, mixed $i_xValue, bool $i_bAllowOverwrite = false ) : static {
+    public function addVariable( string $i_stKey, mixed $i_xValue, bool $i_bAllowOverwrite ) : static {
         $var = $this->variable( $i_stKey );
         if ( ! is_null( $var?->xValue ) && ! $i_bAllowOverwrite ) {
             throw new InvalidArgumentException( "Variable node at '{$i_stKey}' already has a value" );
@@ -348,7 +348,7 @@ class TrieNode {
     }
 
 
-    public function setValue( mixed $i_xValue, bool $i_bAllowOverwrite = false ) : void {
+    public function setValue( mixed $i_xValue, bool $i_bAllowOverwrite ) : void {
         if ( $i_bAllowOverwrite || is_null( $this->xValue ) ) {
             $this->xValue = static::asNotNode( $i_xValue );
             return;
@@ -365,7 +365,7 @@ class TrieNode {
      * @return static Returns the child node associated with the new value.
      *
      * This method splits a constant link (e.g., "FooBar") to add a new
-     * constant edge that shares a prefix (e.g., "FooQux") so the result
+     * constant edge that shares a prefix (e.g., "FooQux"). The result
      * is a constant edge ("Foo") to a new node with two constant edges,
      * "Bar" and "Qux" to the old and new nodes respectively.
      *
@@ -390,11 +390,11 @@ class TrieNode {
         # node rather than this one. But it may be useful to be able to
         # split unconditionally for some tree grooming operations.
         if ( '' === $stOldRest && '' !== $i_stNewRest ) {
-            return $tncOldConstant->addConstant( $i_stNewRest, $i_xNewValue );
+            return $tncOldConstant->addConstant( $i_stNewRest, $i_xNewValue, false );
         }
 
         # No matter what, we need to remove the old key from the list of
-        # constants, because we are going to add a new edge.
+        # constants because we are going to add a new edge.
         $tncOldConstant->prune();
 
         # Case 2: New key is a prefix of the old key.

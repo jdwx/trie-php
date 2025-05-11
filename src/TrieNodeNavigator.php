@@ -44,7 +44,7 @@ class TrieNodeNavigator extends TrieNode {
     }
 
 
-    public function add( string $i_stPath, mixed $i_xValue, bool $i_bAllowVariables = false ) : static {
+    public function add( string $i_stPath, mixed $i_xValue, bool $i_bAllowVariables, bool $i_bAllowOverwrite ) : static {
         $match = $this->matchOne( $i_stPath, $i_bAllowVariables, false );
         if ( is_null( $match ) ) {
             $tnChild = $this;
@@ -55,7 +55,7 @@ class TrieNodeNavigator extends TrieNode {
         }
         $uPos = $i_bAllowVariables ? strpos( $stRest, '$' ) : false;
         if ( false === $uPos ) {
-            return static::cast( $tnChild->addConstant( $stRest, $i_xValue ) );
+            return static::cast( $tnChild->addConstant( $stRest, $i_xValue, $i_bAllowOverwrite ) );
         }
         $stConstant = substr( $stRest, 0, $uPos );
         [ $stVarName, $stRest ] = static::extractVariableName( substr( $stRest, $uPos ) );
@@ -63,14 +63,14 @@ class TrieNodeNavigator extends TrieNode {
         assert( is_string( $stRest ) );
 
         if ( '' !== $stConstant ) {
-            $tnChild = $tnChild->addConstant( $stConstant, null );
+            $tnChild = $tnChild->addConstant( $stConstant, null, $i_bAllowOverwrite );
         }
 
         if ( empty( $stRest ) ) {
-            return static::cast( $tnChild->addVariable( $stVarName, $i_xValue ) );
+            return static::cast( $tnChild->addVariable( $stVarName, $i_xValue, $i_bAllowOverwrite ) );
         }
-        $tnChild = $tnChild->addVariable( $stVarName, null );
-        return static::cast( $tnChild->addConstant( $stRest, $i_xValue ) );
+        $tnChild = $tnChild->addVariable( $stVarName, null, $i_bAllowOverwrite );
+        return static::cast( $tnChild->addConstant( $stRest, $i_xValue, $i_bAllowOverwrite ) );
     }
 
 
@@ -94,7 +94,7 @@ class TrieNodeNavigator extends TrieNode {
 
 
     /** @param array<string, string> &$o_rVariables */
-    public function get( string $i_stPath, array &$o_rVariables, bool $i_bAllowVariables = false ) : mixed {
+    public function get( string $i_stPath, array &$o_rVariables, bool $i_bAllowVariables ) : mixed {
         $o_rVariables = [];
         $match = $this->matchOne( $i_stPath, $i_bAllowVariables, true );
         if ( is_null( $match ) || $match->stRest ) {
@@ -125,8 +125,7 @@ class TrieNodeNavigator extends TrieNode {
      * @param array<string, string> $i_rMatches
      * @return iterable<TrieMatch>
      */
-    public function match( string $i_stMatch, bool $i_bAllowVariables, bool $i_bExpandVariables,
-                           array  $i_rMatches = [] ) : iterable {
+    public function match( string $i_stMatch, bool $i_bAllowVariables, bool $i_bExpandVariables, array $i_rMatches ) : iterable {
         # We can always match nothing and treat the rest as extra.
         if ( ! is_null( $this->xValue ) ) {
             yield new TrieMatch( $this, $i_stMatch, $i_rMatches );
@@ -167,8 +166,7 @@ class TrieNodeNavigator extends TrieNode {
     public function matchOne( string $i_stMatch, bool $i_bAllowVariables, bool $i_bExpandVariables ) : ?TrieMatch {
         $uMaxScore = 0;
         $rMatches = [];
-        // foreach ( $this->match( $i_stMatch, $i_bAllowVariables, $i_bExpandVariables ) as $tm ) {
-        $r = iterator_to_array( $this->match( $i_stMatch, $i_bAllowVariables, $i_bExpandVariables ), false );
+        $r = iterator_to_array( $this->match( $i_stMatch, $i_bAllowVariables, $i_bExpandVariables, [] ), false );
         foreach ( $r as $tm ) {
             $uScore = '' === $tm->stRest ? 1 : 0;
             foreach ( $tm->rMatches as $stKey => $stValue ) {
@@ -206,15 +204,14 @@ class TrieNodeNavigator extends TrieNode {
     }
 
 
-    public function set( string $i_stPath, mixed $i_xValue, bool $i_bAllowVariables = false,
-                         bool   $i_bOverwrite = false ) : static {
+    public function set( string $i_stPath, mixed $i_xValue, bool $i_bAllowVariables, bool $i_bOverwrite ) : static {
         $match = $this->matchOne( $i_stPath, $i_bAllowVariables, false );
         if ( is_null( $match ) ) {
-            return $this->add( $i_stPath, $i_xValue, $i_bAllowVariables );
+            return $this->add( $i_stPath, $i_xValue, $i_bAllowVariables, $i_bOverwrite );
         }
         $tnChild = static::cast( $match->tn );
         if ( ! empty( $match->stRest ) ) {
-            return $tnChild->add( $match->stRest, $i_xValue, $i_bAllowVariables );
+            return $tnChild->add( $match->stRest, $i_xValue, $i_bAllowVariables, $i_bOverwrite );
         }
         $tnChild->setValue( $i_xValue, $i_bOverwrite );
         return $tnChild;

@@ -15,12 +15,12 @@ final class TrieNodeTest extends TestCase {
 
 
     public function testAddConstantForCommonPrefix() : void {
-        $node = new TrieNode();
+        $node = new TrieNode( null, null );
         $tnBar = $node->rConstants[ 'FooBar' ] = new TrieNode( 'BAR', $node );
         self::assertSame( 'BAR', $tnBar->xValue );
         self::assertSame( $tnBar, $node->rConstants[ 'FooBar' ] );
 
-        $tnQux = $node->addConstant( 'FooQux', 'QUX' );
+        $tnQux = $node->addConstant( 'FooQux', 'QUX', false );
         self::assertSame( 'QUX', $node->rConstants[ 'Foo' ]->rConstants[ 'Qux' ]->xValue );
         self::assertSame( $tnBar, $node->rConstants[ 'Foo' ]->rConstants[ 'Bar' ] );
         self::assertSame( $tnQux, $node->rConstants[ 'Foo' ]->rConstants[ 'Qux' ] );
@@ -28,21 +28,21 @@ final class TrieNodeTest extends TestCase {
 
 
     public function testAddConstantForDuplicate() : void {
-        $node = new TrieNode();
-        $node->addConstant( 'Foo', 'FOO' );
+        $node = new TrieNode( null, null );
+        $node->addConstant( 'Foo', 'FOO', false );
         self::assertSame( 'FOO', $node->rConstants[ 'Foo' ]->xValue );
 
         $node->addConstant( 'Foo', 'BAR', true );
         self::assertSame( 'BAR', $node->rConstants[ 'Foo' ]->xValue );
 
         self::expectException( InvalidArgumentException::class );
-        $node->addConstant( 'Foo', 'BAZ' );
+        $node->addConstant( 'Foo', 'BAZ', false );
     }
 
 
     public function testAddConstantForNewKey() : void {
-        $node = new TrieNode();
-        $tn = $node->addConstant( 'foo', 'FOO' );
+        $node = new TrieNode( null, null );
+        $tn = $node->addConstant( 'foo', 'FOO', false );
         self::assertSame( 'FOO', $tn->xValue );
         self::assertSame( $tn, $node->rConstants[ 'foo' ] );
         self::assertSame( $node, $tn->parent );
@@ -50,8 +50,8 @@ final class TrieNodeTest extends TestCase {
 
 
     public function testAddVariableChild() : void {
-        $node = new TrieNode();
-        $tn = $node->addVariable( '$foo', 'FOO' );
+        $node = new TrieNode( null, null );
+        $tn = $node->addVariable( '$foo', 'FOO', false );
         self::assertSame( 'FOO', $node->rVariables[ '$foo' ]->xValue );
         self::assertSame( $tn, $node->rVariables[ '$foo' ] );
 
@@ -61,7 +61,7 @@ final class TrieNodeTest extends TestCase {
         self::assertSame( $tn, $tn2 );
 
         self::expectException( InvalidArgumentException::class );
-        $node->addVariable( '$foo', 'BAZ' );
+        $node->addVariable( '$foo', 'BAZ', false );
     }
 
 
@@ -70,7 +70,7 @@ final class TrieNodeTest extends TestCase {
         self::assertSame( 'foo', $tn->xValue );
         self::assertEmpty( $tn->rConstants );
 
-        $node = new TrieNode( 'foo' );
+        $node = new TrieNode( 'foo', null );
         $tn = TrieNode::asNode( $node );
         self::assertSame( 'foo', $tn->xValue );
         self::assertSame( $node, $tn );
@@ -79,14 +79,14 @@ final class TrieNodeTest extends TestCase {
 
 
     public function testAsNotNode() : void {
-        $node = new TrieNode( 'foo' );
+        $node = new TrieNode( 'foo', null );
         self::assertSame( 'foo', TrieNode::asNotNode( $node ) );
         self::assertSame( 'foo', TrieNode::asNotNode( 'foo' ) );
     }
 
 
     public function testCast() : void {
-        $node = new TrieNode( 'foo' );
+        $node = new TrieNode( 'foo', null );
         self::assertSame( $node, TrieNode::cast( $node ) );
         self::expectException( InvalidArgumentException::class );
         TrieNodeNavigator::cast( $node );
@@ -95,9 +95,9 @@ final class TrieNodeTest extends TestCase {
 
 
     public function testChild() : void {
-        $node = new TrieNode();
+        $node = new TrieNode( null, null );
         self::assertNull( $node->constant( 'Foo' ) );
-        $tnFoo = new TrieNode( 'FOO' );
+        $tnFoo = new TrieNode( 'FOO', null );
         $node->rConstants[ 'Foo' ] = $tnFoo;
         self::assertSame( $tnFoo, $node->constant( 'Foo' ) );
         self::assertNull( $node->constant( 'Bar' ) );
@@ -116,15 +116,15 @@ final class TrieNodeTest extends TestCase {
 
 
     public function testConstant() : void {
-        $node = new TrieNode();
-        $tnFoo = $node->rConstants[ 'Foo' ] = new TrieNode( 'FOO' );
+        $node = new TrieNode( null, null );
+        $tnFoo = $node->rConstants[ 'Foo' ] = new TrieNode( 'FOO', null );
         self::assertSame( $tnFoo, $node->constant( 'Foo' ) );
     }
 
 
     public function testConstantEx() : void {
-        $node = new TrieNode();
-        $tnFoo = $node->rConstants[ 'Foo' ] = new TrieNode( 'FOO' );
+        $node = new TrieNode( null, null );
+        $tnFoo = $node->rConstants[ 'Foo' ] = new TrieNode( 'FOO', null );
         self::assertSame( $tnFoo, $node->constantEx( 'Foo' ) );
         self::expectException( InvalidArgumentException::class );
         $node->constantEx( 'Bar' );
@@ -132,19 +132,19 @@ final class TrieNodeTest extends TestCase {
 
 
     public function testConstants() : void {
-        $node = new TrieNode();
-        $tnFoo = $node->rConstants[ 'Foo' ] = new TrieNode( 'FOO' );
-        $tnBar = $node->rConstants[ 'Bar' ] = new TrieNode( 'BAR' );
+        $node = new TrieNode( null, null );
+        $tnFoo = $node->rConstants[ 'Foo' ] = new TrieNode( 'FOO', null );
+        $tnBar = $node->rConstants[ 'Bar' ] = new TrieNode( 'BAR', null );
         self::assertSame( [ 'Foo' => $tnFoo, 'Bar' => $tnBar ], iterator_to_array( $node->constants() ) );
     }
 
 
     public function testConstruct() : void {
-        $node = new TrieNode();
+        $node = new TrieNode( null, null );
         self::assertNull( $node->xValue );
         self::assertEmpty( $node->rConstants );
 
-        $node2 = new TrieNode( 'foo' );
+        $node2 = new TrieNode( 'foo', null );
         self::assertSame( 'foo', $node2->xValue );
         self::assertEmpty( $node2->rConstants );
     }
@@ -264,21 +264,21 @@ final class TrieNodeTest extends TestCase {
 
 
     public function testFindParentKey() : void {
-        $node = new TrieNode();
+        $node = new TrieNode( null, null );
         self::assertNull( $node->findParentKey() );
 
-        $node2 = new TrieNode();
+        $node2 = new TrieNode( null, null );
         $node->rConstants[ 'foo' ] = $node2;
         $node2->parent = $node;
 
         self::assertSame( 'foo', $node2->findParentKey() );
 
-        $node3 = new TrieNode();
+        $node3 = new TrieNode( null, null );
         $node->rVariables[ '$bar' ] = $node3;
         $node3->parent = $node;
         self::assertSame( '$bar', $node3->findParentKey() );
 
-        $node = new TrieNode( 'Foo' );
+        $node = new TrieNode( 'Foo', null );
         $node2 = new TrieNode( 'Bar', $node );
         self::expectException( LogicException::class );
         $node2->findParentKey();
@@ -286,10 +286,10 @@ final class TrieNodeTest extends TestCase {
 
 
     public function testFindPath() : void {
-        $root = new TrieNode();
-        $tnFoo = new TrieNode( 'foo' );
-        $tnBar = new TrieNode( 'bar' );
-        $tnBaz = new TrieNode( 'baz' );
+        $root = new TrieNode( null, null );
+        $tnFoo = new TrieNode( 'foo', null );
+        $tnBar = new TrieNode( 'bar', null );
+        $tnBaz = new TrieNode( 'baz', null );
         $root->rConstants[ 'Foo' ] = $tnFoo;
         $tnFoo->parent = $root;
         $tnFoo->rConstants[ 'Bar' ] = $tnBar;
@@ -302,8 +302,8 @@ final class TrieNodeTest extends TestCase {
 
 
     public function testGetChild() : void {
-        $node = new TrieNode();
-        $node->rConstants[ 'foo' ] = new TrieNode( 'bar' );
+        $node = new TrieNode( null, null );
+        $node->rConstants[ 'foo' ] = new TrieNode( 'bar', null );
 
         $stPath = 'foobar';
         $tn = $node->getConstant( $stPath );
@@ -316,8 +316,8 @@ final class TrieNodeTest extends TestCase {
 
 
     public function testGetChildForPrune() : void {
-        $tnFoo = new TrieNode( 'foo' );
-        $tnBar = new TrieNode();
+        $tnFoo = new TrieNode( 'foo', null );
+        $tnBar = new TrieNode( null, null );
         $tnFoo->rConstants[ 'foo' ] = $tnBar;
 
         $stPath = 'foobar';
@@ -327,25 +327,25 @@ final class TrieNodeTest extends TestCase {
 
 
     public function testIsDead() : void {
-        $node = new TrieNode();
+        $node = new TrieNode( null, null );
         self::assertTrue( $node->isDead() );
 
-        $node = new TrieNode( 'foo' );
+        $node = new TrieNode( 'foo', null );
         self::assertFalse( $node->isDead() );
 
-        $node = new TrieNode();
-        $node->rConstants[ 'foo' ] = new TrieNode();
+        $node = new TrieNode( null, null );
+        $node->rConstants[ 'foo' ] = new TrieNode( null, null );
         self::assertFalse( $node->isDead() );
 
-        $node = new TrieNode();
-        $node->rVariables[ '$foo' ] = new TrieNode( 'foo' );
+        $node = new TrieNode( null, null );
+        $node->rVariables[ '$foo' ] = new TrieNode( 'foo', null );
         self::assertFalse( $node->isDead() );
     }
 
 
     public function testLinkConstant() : void {
-        $node = new TrieNode();
-        $tnFoo = new TrieNode( 'FOO' );
+        $node = new TrieNode( null, null );
+        $tnFoo = new TrieNode( 'FOO', null );
         $node->linkConstant( 'Foo', $tnFoo );
         self::assertSame( $tnFoo, $node->rConstants[ 'Foo' ] );
         self::assertSame( $node, $tnFoo->parent );
@@ -361,8 +361,8 @@ final class TrieNodeTest extends TestCase {
 
 
     public function testLinkVariable() : void {
-        $node = new TrieNode();
-        $tnFoo = new TrieNode( 'FOO' );
+        $node = new TrieNode( null, null );
+        $tnFoo = new TrieNode( 'FOO', null );
         $node->linkVariable( '$Foo', $tnFoo );
         self::assertSame( $tnFoo, $node->rVariables[ '$Foo' ] );
         self::assertSame( $node, $tnFoo->parent );
@@ -378,17 +378,17 @@ final class TrieNodeTest extends TestCase {
 
 
     public function testMatchConstantPrefix() : void {
-        $node = new TrieNode();
-        $node->rConstants[ 'Foo' ] = new TrieNode();
-        $node->rConstants[ 'Baz' ] = new TrieNode();
+        $node = new TrieNode( null, null );
+        $node->rConstants[ 'Foo' ] = new TrieNode( null, null );
+        $node->rConstants[ 'Baz' ] = new TrieNode( null, null );
 
         [ $stPrefix, $stKey, $stRest ] = $node->matchConstantPrefix( 'FooBar' );
         self::assertSame( 'Foo', $stPrefix );
         self::assertSame( 'Foo', $stKey );
         self::assertSame( 'Bar', $stRest );
 
-        $node = new TrieNode();
-        $node->rConstants[ 'FooBar' ] = new TrieNode();
+        $node = new TrieNode( null, null );
+        $node->rConstants[ 'FooBar' ] = new TrieNode( null, null );
 
         [ $stPrefix, $stKey, $stRest ] = $node->matchConstantPrefix( 'FooQux' );
         self::assertSame( 'Foo', $stPrefix );
@@ -409,8 +409,8 @@ final class TrieNodeTest extends TestCase {
 
 
     public function testMatchVariablePrefix() : void {
-        $node = new TrieNode();
-        $node->rVariables[ '$Foo' ] = new TrieNode();
+        $node = new TrieNode( null, null );
+        $node->rVariables[ '$Foo' ] = new TrieNode( null, null );
 
         [ $stKey, $stRest ] = $node->matchVariablePrefix( '${Foo}Bar' );
         self::assertSame( '$Foo', $stKey );
@@ -432,8 +432,8 @@ final class TrieNodeTest extends TestCase {
         self::assertNull( $stKey );
         self::assertNull( $stRest );
 
-        $node = new TrieNode();
-        $node->rVariables[ '$FooBar' ] = new TrieNode();
+        $node = new TrieNode( null, null );
+        $node->rVariables[ '$FooBar' ] = new TrieNode( null, null );
 
         [ $stKey, $stRest ] = $node->matchVariablePrefix( '$FooQux' );
         self::assertNull( $stKey );
@@ -464,12 +464,12 @@ final class TrieNodeTest extends TestCase {
 
 
     public function testNodePruneForVariable() : void {
-        $node = new TrieNode();
-        $tnFoo = $node->rVariables[ '$Foo' ] = new TrieNode( 'FOO' );
+        $node = new TrieNode( null, null );
+        $tnFoo = $node->rVariables[ '$Foo' ] = new TrieNode( 'FOO', null );
         $tnFoo->parent = $node;
-        $tnBar = $tnFoo->rConstants[ 'Bar' ] = new TrieNode( 'BAR' );
+        $tnBar = $tnFoo->rConstants[ 'Bar' ] = new TrieNode( 'BAR', null );
         $tnBar->parent = $tnFoo;
-        $tnBaz = $tnFoo->rVariables[ '$Baz' ] = new TrieNode( 'BAZ' );
+        $tnBaz = $tnFoo->rVariables[ '$Baz' ] = new TrieNode( 'BAZ', null );
         $tnBaz->parent = $tnFoo;
         $tnFoo->prune();
         self::assertNull( $tnFoo->parent );
@@ -480,12 +480,12 @@ final class TrieNodeTest extends TestCase {
 
 
     public function testPruneForConstant() : void {
-        $node = new TrieNode();
-        $tnFoo = $node->rConstants[ 'Foo' ] = new TrieNode( 'FOO' );
+        $node = new TrieNode( null, null );
+        $tnFoo = $node->rConstants[ 'Foo' ] = new TrieNode( 'FOO', null );
         $tnFoo->parent = $node;
-        $tnBar = $tnFoo->rConstants[ 'Bar' ] = new TrieNode( 'BAR' );
+        $tnBar = $tnFoo->rConstants[ 'Bar' ] = new TrieNode( 'BAR', null );
         $tnBar->parent = $tnFoo;
-        $tnBaz = $tnFoo->rVariables[ '$Baz' ] = new TrieNode( 'BAZ' );
+        $tnBaz = $tnFoo->rVariables[ '$Baz' ] = new TrieNode( 'BAZ', null );
         $tnBaz->parent = $tnFoo;
         $tnFoo->prune();
         self::assertNull( $tnFoo->parent );
@@ -499,23 +499,23 @@ final class TrieNodeTest extends TestCase {
 
 
     public function testSetValue() : void {
-        $node = new TrieNode();
+        $node = new TrieNode( null, null );
         self::assertNull( $node->xValue );
-        $node->setValue( 'foo' );
+        $node->setValue( 'foo', false );
         self::assertSame( 'foo', $node->xValue );
 
         $node->setValue( 'bar', true );
         self::assertSame( 'bar', $node->xValue );
 
         self::expectException( InvalidArgumentException::class );
-        $node->setValue( 'baz' );
+        $node->setValue( 'baz', false );
     }
 
 
     public function testSplitForCommonPrefix() : void {
-        $node = new TrieNode();
-        $tnBar = $node->rConstants[ 'FooBar' ] = new TrieNode( 'BAR' );
-        $tnBar->rConstants[ 'Baz' ] = new TrieNode( 'BAZ' );
+        $node = new TrieNode( null, null );
+        $tnBar = $node->rConstants[ 'FooBar' ] = new TrieNode( 'BAR', null );
+        $tnBar->rConstants[ 'Baz' ] = new TrieNode( 'BAZ', null );
         $node->splitConstant( 'Foo', 'FooBar', 'Qux', 'QUX' );
         self::assertSame( 'BAR', $node->rConstants[ 'Foo' ]->rConstants[ 'Bar' ]->xValue );
         self::assertSame( 'QUX', $node->rConstants[ 'Foo' ]->rConstants[ 'Qux' ]->xValue );
@@ -533,10 +533,10 @@ final class TrieNodeTest extends TestCase {
 
 
     public function testSplitForExistingIsSubstring() : void {
-        $node = new TrieNode();
-        $tnFoo = $node->rConstants[ 'Foo' ] = new TrieNode( 'FOO' );
+        $node = new TrieNode( null, null );
+        $tnFoo = $node->rConstants[ 'Foo' ] = new TrieNode( 'FOO', null );
         $tnFoo->parent = $node;
-        $tnBar = $tnFoo->rConstants[ 'Bar' ] = new TrieNode( 'BAR' );
+        $tnBar = $tnFoo->rConstants[ 'Bar' ] = new TrieNode( 'BAR', null );
         $tnBar->parent = $tnFoo;
         $node->splitConstant( 'Foo', 'Foo', 'Qux', 'QUX' );
         self::assertSame( 'FOO', $node->rConstants[ 'Foo' ]->xValue );
@@ -555,10 +555,10 @@ final class TrieNodeTest extends TestCase {
 
 
     public function testSplitForNewIsSubstring() : void {
-        $node = new TrieNode();
-        $tnFoo = $node->rConstants[ 'FooBar' ] = new TrieNode( 'BAR' );
+        $node = new TrieNode( null, null );
+        $tnFoo = $node->rConstants[ 'FooBar' ] = new TrieNode( 'BAR', null );
         $tnFoo->parent = $node;
-        $tnBaz = $tnFoo->rConstants[ 'Baz' ] = new TrieNode( 'BAZ' );
+        $tnBaz = $tnFoo->rConstants[ 'Baz' ] = new TrieNode( 'BAZ', null );
         $tnBaz->parent = $tnFoo;
         $node->splitConstant( 'Foo', 'FooBar', '', 'FOO' );
         self::assertSame( 'FOO', $node->rConstants[ 'Foo' ]->xValue );
@@ -577,20 +577,20 @@ final class TrieNodeTest extends TestCase {
 
 
     public function testUnsetValue() : void {
-        $node = new TrieNode();
+        $node = new TrieNode( null, null );
         $node->unsetValue();
         self::assertNull( $node->xValue );
 
-        $node = new TrieNode( 'foo' );
+        $node = new TrieNode( 'foo', null );
         $node->unsetValue();
         self::assertNull( $node->xValue );
     }
 
 
     public function testVariable() : void {
-        $node = new TrieNode();
+        $node = new TrieNode( null, null );
         self::assertNull( $node->variable( '$Foo' ) );
-        $tnFoo = new TrieNode( 'FOO' );
+        $tnFoo = new TrieNode( 'FOO', null );
         $node->rVariables[ '$Foo' ] = $tnFoo;
         self::assertSame( $tnFoo, $node->variable( '$Foo' ) );
         self::assertNull( $node->variable( '$Bar' ) );
@@ -598,8 +598,8 @@ final class TrieNodeTest extends TestCase {
 
 
     public function testVariableEx() : void {
-        $node = new TrieNode();
-        $tnFoo = $node->rVariables[ '$Foo' ] = new TrieNode( 'FOO' );
+        $node = new TrieNode( null, null );
+        $tnFoo = $node->rVariables[ '$Foo' ] = new TrieNode( 'FOO', null );
         self::assertSame( $tnFoo, $node->variableEx( '$Foo' ) );
         self::expectException( InvalidArgumentException::class );
         $node->variableEx( '$Bar' );
@@ -607,9 +607,9 @@ final class TrieNodeTest extends TestCase {
 
 
     public function testVariables() : void {
-        $node = new TrieNode();
-        $tnFoo = $node->rVariables[ '$Foo' ] = new TrieNode( 'FOO' );
-        $tnBar = $node->rVariables[ '$Bar' ] = new TrieNode( 'BAR' );
+        $node = new TrieNode( null, null );
+        $tnFoo = $node->rVariables[ '$Foo' ] = new TrieNode( 'FOO', null );
+        $tnBar = $node->rVariables[ '$Bar' ] = new TrieNode( 'BAR', null );
         self::assertSame( [ '$Foo' => $tnFoo, '$Bar' => $tnBar ], iterator_to_array( $node->variables() ) );
     }
 

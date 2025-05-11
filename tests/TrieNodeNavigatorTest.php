@@ -15,10 +15,10 @@ final class TrieNodeNavigatorTest extends TestCase {
 
 
     public function testAddForConstants() : void {
-        $tnRoot = new TrieNodeNavigator();
-        $tnRoot->add( 'Foo', 'FOO' );
-        $tnRoot->add( 'FooBar', 'BAR' );
-        $tnRoot->add( 'FooBarBaz', 'BAZ' );
+        $tnRoot = new TrieNodeNavigator( null, null );
+        $tnRoot->add( 'Foo', 'FOO', false, false );
+        $tnRoot->add( 'FooBar', 'BAR', false, false );
+        $tnRoot->add( 'FooBarBaz', 'BAZ', false, false );
         self::assertSame( 'FOO', $tnRoot->rConstants[ 'Foo' ]->xValue );
         self::assertSame( 'BAR', $tnRoot->rConstants[ 'Foo' ]->rConstants[ 'Bar' ]->xValue );
         self::assertSame( 'BAZ', $tnRoot->rConstants[ 'Foo' ]->rConstants[ 'Bar' ]->rConstants[ 'Baz' ]->xValue );
@@ -26,11 +26,11 @@ final class TrieNodeNavigatorTest extends TestCase {
 
 
     public function testAddForNoVariables() : void {
-        $root = new TrieNodeNavigator();
-        $root->add( 'Foo', 'FOO' );
-        $root->add( 'Foo Bar', 'BAR' );
-        $root->add( 'Foo Bar:Baz', 'BAZ' );
-        $root->add( 'Foo $Bar Qux', 'QUX' );
+        $root = new TrieNodeNavigator( null, null );
+        $root->add( 'Foo', 'FOO', false, false );
+        $root->add( 'Foo Bar', 'BAR', false, false );
+        $root->add( 'Foo Bar:Baz', 'BAZ', false, false );
+        $root->add( 'Foo $Bar Qux', 'QUX', false, false );
 
         self::assertSame( 'FOO', $root->rConstants[ 'Foo' ]->xValue );
         self::assertSame( 'BAR', $root->rConstants[ 'Foo' ]->rConstants[ ' ' ]->rConstants[ 'Bar' ]->xValue );
@@ -47,11 +47,11 @@ final class TrieNodeNavigatorTest extends TestCase {
 
 
     public function testAddForVariable() : void {
-        $tnRoot = new TrieNodeNavigator();
-        $tnRoot->add( 'Foo', 'FOO', true );
-        $tnRoot->add( 'Foo$Bar', 'BAR', true );
-        $tnRoot->add( 'Foo${Bar}Baz', 'BAZ', true );
-        $tnRoot->add( 'Foo${Qux}Quux', 'QUUX', true );
+        $tnRoot = new TrieNodeNavigator( null, null );
+        $tnRoot->add( 'Foo', 'FOO', true, false );
+        $tnRoot->add( 'Foo$Bar', 'BAR', true, false );
+        $tnRoot->add( 'Foo${Bar}Baz', 'BAZ', true, false );
+        $tnRoot->add( 'Foo${Qux}Quux', 'QUUX', true, false );
         self::assertSame( 'FOO', $tnRoot->rConstants[ 'Foo' ]->xValue );
         self::assertSame( 'BAR', $tnRoot->rConstants[ 'Foo' ]->rVariables[ '$Bar' ]->xValue );
         self::assertSame(
@@ -67,8 +67,8 @@ final class TrieNodeNavigatorTest extends TestCase {
 
 
     public function testFindMatchesAfterVariable() : void {
-        $tn = new TrieNodeNavigator();
-        $tn->addConstant( 'Bar', 'FOO' );
+        $tn = new TrieNodeNavigator( null, null );
+        $tn->addConstant( 'Bar', 'FOO', false );
         self::assertSame(
             [
                 'FooBar' => '',
@@ -94,19 +94,19 @@ final class TrieNodeNavigatorTest extends TestCase {
             iterator_to_array( $tn->findMatchesAfterVariable( 'FooBarBarQux' ) )
         );
 
-        $tn->addVariable( '$Bar', 'BAR' );
+        $tn->addVariable( '$Bar', 'BAR', false );
         self::expectException( LogicException::class );
         iterator_to_array( $tn->findMatchesAfterVariable( 'FooBar' ), false );
     }
 
 
     public function testGet() : void {
-        $tnRoot = new TrieNodeNavigator();
-        $tnRoot->add( 'Foo', 'FOO', true );
-        $tnRoot->add( 'Foo#$Bar', 'BAR', true );
-        $tnRoot->add( 'Foo#$Bar#Baz', 'BAZ', true );
-        $tnRoot->add( 'Foo#$Bar#Baz#$Qux', 'QUX', true );
-        $tnRoot->add( 'Foo#$Bar#Baz#$Qux#Quux', 'QUUX', true );
+        $tnRoot = new TrieNodeNavigator( null, null );
+        $tnRoot->add( 'Foo', 'FOO', true, false );
+        $tnRoot->add( 'Foo#$Bar', 'BAR', true, false );
+        $tnRoot->add( 'Foo#$Bar#Baz', 'BAZ', true, false );
+        $tnRoot->add( 'Foo#$Bar#Baz#$Qux', 'QUX', true, false );
+        $tnRoot->add( 'Foo#$Bar#Baz#$Qux#Quux', 'QUUX', true, false );
 
         $r = [];
         self::assertSame(
@@ -136,12 +136,12 @@ final class TrieNodeNavigatorTest extends TestCase {
 
 
     public function testGetForAmbiguousIntermediateVariable() : void {
-        $root = new TrieNodeNavigator();
-        $tnFoo = $root->addConstant( 'Foo', 'FOO' );
-        $tnBar = $tnFoo->addVariable( '$Bar', 'BAR' );
-        $tnBaz = $tnFoo->addVariable( '$Baz', 'BAZ' );
-        $tnBar->addConstant( ' Qux', 'QUX' );
-        $tnBaz->addConstant( ' Qux', 'QUUX' );
+        $root = new TrieNodeNavigator( null, null );
+        $tnFoo = $root->addConstant( 'Foo', 'FOO', false );
+        $tnBar = $tnFoo->addVariable( '$Bar', 'BAR', false );
+        $tnBaz = $tnFoo->addVariable( '$Baz', 'BAZ', false );
+        $tnBar->addConstant( ' Qux', 'QUX', false );
+        $tnBaz->addConstant( ' Qux', 'QUUX', false );
 
         $r = [];
         self::expectException( RuntimeException::class );
@@ -150,10 +150,10 @@ final class TrieNodeNavigatorTest extends TestCase {
 
 
     public function testGetForAmbiguousTerminalVariable() : void {
-        $root = new TrieNodeNavigator();
-        $tnFoo = $root->addConstant( 'Foo', 'FOO' );
-        $tnFoo->addVariable( '$Bar', 'BAR' );
-        $tnFoo->addVariable( '$Baz', 'BAZ' );
+        $root = new TrieNodeNavigator( null, null );
+        $tnFoo = $root->addConstant( 'Foo', 'FOO', false );
+        $tnFoo->addVariable( '$Bar', 'BAR', false );
+        $tnFoo->addVariable( '$Baz', 'BAZ', false );
 
         $r = [];
         self::expectException( RuntimeException::class );
@@ -162,20 +162,21 @@ final class TrieNodeNavigatorTest extends TestCase {
 
 
     public function testGetForInvalidVariableValue() : void {
-        $root = new TrieNodeNavigator();
-        $tnFoo = $root->addConstant( 'Foo', 'FOO' );
-        $tnBar = $tnFoo->addVariable( '$Bar', 'BAR' );
-        $tnBar->addVariable( '$Baz', 'BAZ' );
+        $root = new TrieNodeNavigator( null, null );
+        $tnFoo = $root->addConstant( 'Foo', 'FOO', false );
+        $tnBar = $tnFoo->addVariable( '$Bar', 'BAR', false );
+        $tnBar->addVariable( '$Baz', 'BAZ', false );
         $r = [];
-        self::assertNull( $root->get( 'Foo QuxBaz', $r ) );
+        self::expectException( LogicException::class );
+        $root->get( 'Foo QuxBaz', $r, true );
     }
 
 
     public function testGetForMixedVariableAndConstant() : void {
-        $root = new TrieNodeNavigator();
-        $tnFoo = $root->addConstant( 'Foo', 'FOO' );
-        $tnBar = $tnFoo->addConstant( 'Bar', 'BAR' );
-        $tnBaz = $tnFoo->addVariable( '$Baz', 'BAZ' );
+        $root = new TrieNodeNavigator( null, null );
+        $tnFoo = $root->addConstant( 'Foo', 'FOO', false );
+        $tnBar = $tnFoo->addConstant( 'Bar', 'BAR', false );
+        $tnBaz = $tnFoo->addVariable( '$Baz', 'BAZ', false );
 
         $r = [];
         self::assertSame( 'FOO', $root->get( 'Foo', $r, true ) );
@@ -187,8 +188,8 @@ final class TrieNodeNavigatorTest extends TestCase {
         self::assertArrayHasKey( '$Baz', $r );
         self::assertContains( 'Qux', $r );
 
-        $tnBar->addConstant( ' Qux', 'QUX' );
-        $tnBaz->addConstant( ' Quux', 'QUUX' );
+        $tnBar->addConstant( ' Qux', 'QUX', false );
+        $tnBaz->addConstant( ' Quux', 'QUUX', false );
 
         self::assertSame( 'QUX', $root->get( 'FooBar Qux', $r, true ) );
         self::assertEmpty( $r );
@@ -198,30 +199,38 @@ final class TrieNodeNavigatorTest extends TestCase {
 
 
     public function testGetForNoMatchAfterVariable() : void {
-        $root = new TrieNodeNavigator();
-        $tnFoo = $root->addConstant( 'Foo', 'FOO' );
-        $tnBar = $tnFoo->addVariable( '$Bar', 'BAR' );
-        $tnBar->addConstant( ' Qux', 'QUX' );
+        $root = new TrieNodeNavigator( null, null );
+        $tnFoo = $root->addConstant( 'Foo', 'FOO', false );
+        $tnBar = $tnFoo->addVariable( '$Bar', 'BAR', false );
+        $tnBar->addConstant( ' Qux', 'QUX', false );
 
         $r = [];
-        self::assertNull( $root->get( 'FooQux Quux', $r ) );
+        self::assertSame( 'BAR', $root->get( 'FooQux Quux', $r, true ) );
+
+        $root = new TrieNodeNavigator( null, null );
+        $tnFoo = $root->addConstant( 'Foo', 'FOO', false );
+        $tnBar = $tnFoo->addVariable( '$Bar', null, false );
+        $tnBar->addConstant( ' Qux', 'QUX', false );
+
+        $r = [];
+        self::assertNull( $root->get( 'FooQux Quux', $r, true ) );
     }
 
 
     public function testGetForPastEnd() : void {
-        $root = new TrieNodeNavigator();
-        $tnFoo = $root->addConstant( 'Foo', 'FOO' );
-        $tnBar = $tnFoo->addConstant( 'Bar', 'BAR' );
-        $tnBar->addConstant( 'Baz', 'BAZ' );
+        $root = new TrieNodeNavigator( null, null );
+        $tnFoo = $root->addConstant( 'Foo', 'FOO', false );
+        $tnBar = $tnFoo->addConstant( 'Bar', 'BAR', false );
+        $tnBar->addConstant( 'Baz', 'BAZ', false );
 
         $r = [];
-        self::assertSame( 'FOO', $root->get( 'Foo', $r, true ) );
+        self::assertSame( 'FOO', $root->get( 'Foo', $r, false ) );
         self::assertEmpty( $r );
-        self::assertSame( 'BAR', $root->get( 'FooBar', $r, true ) );
+        self::assertSame( 'BAR', $root->get( 'FooBar', $r, false ) );
         self::assertEmpty( $r );
-        self::assertSame( 'BAZ', $root->get( 'FooBarBaz', $r ) );
+        self::assertSame( 'BAZ', $root->get( 'FooBarBaz', $r, false ) );
         self::assertEmpty( $r );
-        self::assertNull( $root->get( 'FooBarBazQux', $r ) );
+        self::assertNull( $root->get( 'FooBarBazQux', $r, false ) );
         self::assertEmpty( $r );
     }
 
@@ -230,7 +239,7 @@ final class TrieNodeNavigatorTest extends TestCase {
      * @return void
      */
     public function testGetForUnambiguousTerminalVariable() : void {
-        $root = new TrieNodeNavigator();
+        $root = new TrieNodeNavigator( null, null );
         $tnFoo = $root->linkConstant( 'Foo', 'FOO' );
         $tnBar = $tnFoo->linkVariable( '$Bar', 'BAR' );
         $tnBaz = $tnFoo->linkVariable( '$Baz', 'BAR' );
@@ -245,10 +254,10 @@ final class TrieNodeNavigatorTest extends TestCase {
 
 
     public function testGetWithVariables() : void {
-        $root = new TrieNodeNavigator();
-        $tnFoo = $root->addConstant( 'Foo', 'FOO' );
-        $tnBar = $tnFoo->addVariable( '$Bar', 'BAR' );
-        $tnBar->addConstant( 'Baz', 'BAZ' );
+        $root = new TrieNodeNavigator( null, null );
+        $tnFoo = $root->addConstant( 'Foo', 'FOO', false );
+        $tnBar = $tnFoo->addVariable( '$Bar', 'BAR', false );
+        $tnBar->addConstant( 'Baz', 'BAZ', false );
 
         $r = [];
         self::assertSame( 'FOO', $root->get( 'Foo', $r, true ) );
@@ -267,7 +276,7 @@ final class TrieNodeNavigatorTest extends TestCase {
 
 
     public function testHas() : void {
-        $tnRoot = new TrieNodeNavigator();
+        $tnRoot = new TrieNodeNavigator( null, null );
         $tnFoo = $tnRoot->linkConstant( 'Foo', 'FOO' );
         $tnBar = $tnFoo->linkVariable( '$Bar', 'BAR' );
         $tnBar->linkConstant( 'Baz', 'BAZ' );
@@ -282,18 +291,18 @@ final class TrieNodeNavigatorTest extends TestCase {
 
 
     public function testHasForNothing() : void {
-        $tnRoot = new TrieNodeNavigator();
+        $tnRoot = new TrieNodeNavigator( null, null );
         $tnRoot->linkConstant( 'Foo', 'FOO' );
         self::assertFalse( $tnRoot->has( 'Bar', true, false ) );
     }
 
 
     public function testHasWithVariables() : void {
-        $root = new TrieNodeNavigator();
-        $tnFoo = $root->addConstant( 'Foo', 'FOO' );
-        $tnBar = $tnFoo->addVariable( '$Bar', 'BAR' );
-        $tnBar->addConstant( ' Baz', 'BAZ' );
-        $tnBar->addConstant( ' Qux', 'QUX' );
+        $root = new TrieNodeNavigator( null, null );
+        $tnFoo = $root->addConstant( 'Foo', 'FOO', false );
+        $tnBar = $tnFoo->addVariable( '$Bar', 'BAR', false );
+        $tnBar->addConstant( ' Baz', 'BAZ', false );
+        $tnBar->addConstant( ' Qux', 'QUX', false );
 
         $r = [];
         self::assertSame( 'FOO', $root->get( 'Foo', $r, true ) );
@@ -378,12 +387,12 @@ final class TrieNodeNavigatorTest extends TestCase {
 
 
     public function testMatchForConstantsOnly() : void {
-        $tnRoot = new TrieNodeNavigator();
+        $tnRoot = new TrieNodeNavigator( null, null );
         $tnFoo = $tnRoot->linkConstant( 'Foo', 'FOO' );
         $tnBar = $tnFoo->linkConstant( 'Bar', 'BAR' );
         $tnBar->linkConstant( 'Baz', 'BAZ' );
 
-        $r = self::i2a( $tnRoot->match( 'Foo', false, false ) );
+        $r = self::i2a( $tnRoot->match( 'Foo', false, false, [] ) );
         self::assertCount( 1, $r );
 
         $tm = $r[ 0 ];
@@ -391,10 +400,10 @@ final class TrieNodeNavigatorTest extends TestCase {
         self::assertSame( '', $tm->stRest );
         self::assertSame( [ 'Foo' => 'Foo' ], $tm->rMatches );
 
-        $r = self::i2a( $tnRoot->match( 'Foo', true, false ) );
+        $r = self::i2a( $tnRoot->match( 'Foo', true, false, [] ) );
         self::assertCount( 1, $r );
 
-        $r = self::i2a( $tnRoot->match( 'FooBar', false, true ) );
+        $r = self::i2a( $tnRoot->match( 'FooBar', false, true, [] ) );
         self::assertCount( 2, $r );
 
         $tm = $r[ 0 ];
@@ -407,7 +416,7 @@ final class TrieNodeNavigatorTest extends TestCase {
         self::assertSame( '', $tm->stRest );
         self::assertSame( [ 'Foo' => 'Foo', 'Bar' => 'Bar' ], $tm->rMatches );
 
-        $r = self::i2a( $tnRoot->match( 'FooBarBaz', true, true ) );
+        $r = self::i2a( $tnRoot->match( 'FooBarBaz', true, true, [] ) );
         self::assertCount( 3, $r );
         $tm = $r[ 0 ];
         self::assertSame( 'FOO', $tm->tn->xValue );
@@ -428,12 +437,12 @@ final class TrieNodeNavigatorTest extends TestCase {
 
 
     public function testMatchForVariableNoSubst() : void {
-        $root = new TrieNodeNavigator();
-        $tnFoo = $root->addConstant( 'Foo', 'FOO' );
-        $tnBar = $tnFoo->addVariable( '$Bar', 'BAR' );
-        $tnBar->addConstant( 'Baz', 'BAZ' );
+        $root = new TrieNodeNavigator( null, null );
+        $tnFoo = $root->addConstant( 'Foo', 'FOO', false );
+        $tnBar = $tnFoo->addVariable( '$Bar', 'BAR', false );
+        $tnBar->addConstant( 'Baz', 'BAZ', false );
 
-        $r = self::i2a( $root->match( 'Foo', true, false ) );
+        $r = self::i2a( $root->match( 'Foo', true, false, [] ) );
         self::assertCount( 1, $r );
 
         $tm = $r[ 0 ];
@@ -442,14 +451,14 @@ final class TrieNodeNavigatorTest extends TestCase {
         self::assertSame( [ 'Foo' => 'Foo' ], $tm->rMatches );
 
         # This won't work because expansion is disabled.
-        $r = self::i2a( $root->match( 'FooQux', true, false ) );
+        $r = self::i2a( $root->match( 'FooQux', true, false, [] ) );
         self::assertCount( 1, $r );
         $tm = $r[ 0 ];
         self::assertSame( 'FOO', $tm->tn->xValue );
         self::assertSame( 'Qux', $tm->stRest );
         self::assertSame( [ 'Foo' => 'Foo' ], $tm->rMatches );
 
-        $r = self::i2a( $root->match( 'Foo$Bar', true, false ) );
+        $r = self::i2a( $root->match( 'Foo$Bar', true, false, [] ) );
         self::assertCount( 2, $r );
         $tm = $r[ 0 ];
         self::assertSame( 'FOO', $tm->tn->xValue );
@@ -465,12 +474,12 @@ final class TrieNodeNavigatorTest extends TestCase {
 
 
     public function testMatchForVariableValue() : void {
-        $root = new TrieNodeNavigator();
-        $tnFoo = $root->addConstant( 'Foo', 'FOO' );
-        $tnBar = $tnFoo->addVariable( '$Bar', 'BAR' );
-        $tnBar->addConstant( 'Baz', 'BAZ' );
+        $root = new TrieNodeNavigator( null, null );
+        $tnFoo = $root->addConstant( 'Foo', 'FOO', false );
+        $tnBar = $tnFoo->addVariable( '$Bar', 'BAR', false );
+        $tnBar->addConstant( 'Baz', 'BAZ', false );
 
-        $r = self::i2a( $root->match( 'FooQux', true, true ) );
+        $r = self::i2a( $root->match( 'FooQux', true, true, [] ) );
         self::assertCount( 2, $r );
         $tm = $r[ 0 ];
         self::assertSame( 'FOO', $tm->tn->xValue );
@@ -483,7 +492,7 @@ final class TrieNodeNavigatorTest extends TestCase {
         self::assertSame( [ 'Foo' => 'Foo', '$Bar' => 'Qux' ], $tm->rMatches );
 
         $r = self::i2a(
-            $root->match( 'FooQuxBaz', true, true ) );
+            $root->match( 'FooQuxBaz', true, true, [] ) );
         self::assertCount( 4, $r );
         $tm = $r[ 0 ];
         self::assertSame( 'FOO', $tm->tn->xValue );
@@ -509,7 +518,7 @@ final class TrieNodeNavigatorTest extends TestCase {
 
 
     public function testMatchOne() : void {
-        $tnRoot = new TrieNodeNavigator();
+        $tnRoot = new TrieNodeNavigator( null, null );
         $tnFoo = $tnRoot->linkConstant( 'Foo', 'FOO' );
         $tnBar = $tnFoo->linkVariable( '$Bar', 'BAR' );
         $tnBar->linkConstant( 'Baz', 'BAZ' );
@@ -532,7 +541,7 @@ final class TrieNodeNavigatorTest extends TestCase {
 
 
     public function testMatchOneForAmbiguous() : void {
-        $tnRoot = new TrieNodeNavigator();
+        $tnRoot = new TrieNodeNavigator( null, null );
         $tnFoo = $tnRoot->linkConstant( 'Foo', 'FOO' );
         $tnBar = $tnFoo->linkVariable( '$Bar', 'BAR' );
         $tnBaz = $tnFoo->linkVariable( '$Baz', 'BAZ' );
@@ -545,7 +554,7 @@ final class TrieNodeNavigatorTest extends TestCase {
 
 
     public function testMatchOneForNoMatch() : void {
-        $tnRoot = new TrieNodeNavigator();
+        $tnRoot = new TrieNodeNavigator( null, null );
         $tnRoot->linkConstant( 'Foo', 'FOO' );
 
         self::assertNull( $tnRoot->matchOne( 'Bar', true, false ) );
@@ -553,7 +562,7 @@ final class TrieNodeNavigatorTest extends TestCase {
 
 
     public function testSetForExisting() : void {
-        $tnRoot = new TrieNodeNavigator();
+        $tnRoot = new TrieNodeNavigator( null, null );
         $tnFoo = $tnRoot->linkConstant( 'Foo', 'FOO' );
         $tnBar = $tnFoo->linkVariable( '$Bar', 'BAR' );
         $tnBaz = $tnBar->linkConstant( 'Baz', 'BAZ' );
@@ -571,12 +580,12 @@ final class TrieNodeNavigatorTest extends TestCase {
         self::assertSame( 'ZAB', $tnRoot->rConstants[ 'Foo' ]->rVariables[ '$Bar' ]->rConstants[ 'Baz' ]->xValue );
 
         self::expectException( InvalidArgumentException::class );
-        $tnRoot->set( 'Foo${Bar}Baz', 'QUX', true );
+        $tnRoot->set( 'Foo${Bar}Baz', 'QUX', true, false );
     }
 
 
     public function testSetForNew() : void {
-        $tnRoot = new TrieNodeNavigator();
+        $tnRoot = new TrieNodeNavigator( null, null );
         $tnFoo = $tnRoot->set( 'Foo', 'FOO', true, true );
 
         self::assertSame( 'FOO', $tnRoot->rConstants[ 'Foo' ]->xValue );
@@ -601,11 +610,11 @@ final class TrieNodeNavigatorTest extends TestCase {
 
 
     public function testUnsetForConstants() : void {
-        $root = new TrieNodeNavigator();
-        $tnFoo = $root->addConstant( 'Foo', 'FOO' );
-        $tnBar = $tnFoo->addConstant( 'Bar', 'BAR' );
-        $tnBar->addConstant( 'Baz', 'BAZ' );
-        $tnBar->addVariable( '$Qux', 'QUX' );
+        $root = new TrieNodeNavigator( null, null );
+        $tnFoo = $root->addConstant( 'Foo', 'FOO', false );
+        $tnBar = $tnFoo->addConstant( 'Bar', 'BAR', false );
+        $tnBar->addConstant( 'Baz', 'BAZ', false );
+        $tnBar->addVariable( '$Qux', 'QUX', false );
 
         $root->unset( 'FooBar', false, false );
         self::assertNull( $root->rConstants[ 'Foo' ]->rConstants[ 'Bar' ]->xValue );
@@ -615,7 +624,7 @@ final class TrieNodeNavigatorTest extends TestCase {
 
 
     public function testUnsetForNotSet() : void {
-        $tnRoot = new TrieNodeNavigator( 'BAZ' );
+        $tnRoot = new TrieNodeNavigator( 'BAZ', null );
         $tnFoo = $tnRoot->linkConstant( 'Foo', 'FOO' );
         $tnFoo->linkConstant( 'Bar', 'BAR' );
 
@@ -638,7 +647,7 @@ final class TrieNodeNavigatorTest extends TestCase {
 
 
     public function testUnsetForPrune() : void {
-        $tnRoot = new TrieNodeNavigator();
+        $tnRoot = new TrieNodeNavigator( null, null );
         $tnFoo = $tnRoot->linkConstant( 'Foo', 'FOO' );
         $tnBar = $tnFoo->linkConstant( 'Bar', 'BAR' );
         $tnBar->linkConstant( 'Baz', 'BAZ' );
@@ -650,7 +659,7 @@ final class TrieNodeNavigatorTest extends TestCase {
 
 
     public function testUnsetForPrune2() : void {
-        $root = new TrieNodeNavigator();
+        $root = new TrieNodeNavigator( null, null );
         $tnFoo = $root->linkConstant( 'Foo', 'FOO' );
         $tnBar = $tnFoo->linkConstant( 'Bar', 'BAR' );
         $tnBar->linkConstant( 'Baz', 'BAZ' );
@@ -663,7 +672,7 @@ final class TrieNodeNavigatorTest extends TestCase {
 
 
     public function testUnsetForVariables() : void {
-        $tnRoot = new TrieNodeNavigator();
+        $tnRoot = new TrieNodeNavigator( null, null );
         $tnFoo = $tnRoot->linkConstant( 'Foo', 'FOO' );
         $tnBar = $tnFoo->linkVariable( '$Bar', 'BAR' );
         $tnBar->linkConstant( 'Baz', 'BAZ' );
@@ -693,8 +702,8 @@ final class TrieNodeNavigatorTest extends TestCase {
      * @param iterable<TrieMatch> $i_r
      * @return list<TrieMatch>
      */
-    private function i2a( iterable $i_r, bool $i_bPreserveKeys = false ) : array {
-        return iterator_to_array( $i_r, $i_bPreserveKeys );
+    private function i2a( iterable $i_r ) : array {
+        return iterator_to_array( $i_r, false );
     }
 
 

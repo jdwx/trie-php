@@ -6,25 +6,23 @@ declare( strict_types = 1 );
 
 require __DIR__ . '/../vendor/autoload.php';
 
-/*
 
 ( function () : void {
 
     $trie = new JDWX\Trie\Trie();
-    $trie->add( 'foo', 'FOO' );
-    $trie->add( 'foo/bar', 'BAR' );
-    $trie->add( 'foo/bar/baz', 'BAZ' );
-    $trie->add( 'foo/bar/qux', 'QUX' );
+    $trie[ 'Foo' ] = 'FOO';
+    $trie[ 'Foo/Bar' ] = 'BAR';
+    $trie[ 'Foo/Bar/Baz' ] = 'BAZ';
+    $trie[ 'Foo/Bar/Qux' ] = 'QUX';
 
-    $trie->get( 'foo/bar' ); # => 'BAR'
-    $trie->get( 'foo/bar/baz' ); # => 'BAZ'
-    $trie->get( 'foo/bar/baz/quux' ); # => null
+    echo $trie[ 'Foo/Bar' ], "\n"; # => 'BAR'
+    echo $trie[ 'Foo/Bar/Baz' ], "\n"; # => 'BAZ'
+    echo $trie[ 'Foo/Bar/Baz/Quux' ] ?? '[null]', "\n"; # => [null]
 
-    $stPath = 'foo/bar/baz/quux';
-    // echo $trie->getPrefix( $stPath ), "\n"; # => BAZ
-    echo "path = ", $stPath, "\n"; # => '/quux'
+    $trie = new JDWX\Trie\Trie( true );
+    $trie[ 'Foo/${Bar}/Baz' ] = 'BAZ';
 
+    echo $trie[ 'Foo/Qux/Baz' ], "\n"; # => 'BAZ'
+    echo $trie->var( '$Bar' ), "\n"; # => 'Qux'
 
 } )();
-
-*/

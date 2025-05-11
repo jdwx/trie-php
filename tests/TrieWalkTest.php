@@ -19,16 +19,16 @@ final class TrieWalkTest extends TestCase {
         self::assertNull( $walk->tsHead );
         self::assertNull( $walk->tsTail );
 
-        $tnFoo = new TrieNode( 'FOO' );
+        $tnFoo = new TrieNode( 'FOO', null );
         $tsFoo = $walk->append( 'Foo', 'Foo', $tnFoo );
         self::assertSame( $tsFoo, $walk->tsHead );
         self::assertSame( $tsFoo, $walk->tsTail );
         self::assertNull( $tsFoo->tsPrev );
         self::assertNull( $tsFoo->tsNext );
 
-        $tnFoo = new TrieNode( 'BAR' );
+        $tnFoo = new TrieNode( 'BAR', null );
         $ts2 = $walk->append( '$Bar', 'bar', $tnFoo );
-        $tnFoo = new TrieNode( 'BAZ' );
+        $tnFoo = new TrieNode( 'BAZ', null );
         $ts3 = $walk->append( 'Baz', 'Baz', $tnFoo );
         self::assertSame( $tsFoo, $walk->tsHead );
         self::assertSame( $ts2, $walk->tsHead->tsNext );
@@ -44,29 +44,29 @@ final class TrieWalkTest extends TestCase {
     public function testGet() : void {
         $walk = new TrieWalk();
         self::assertNull( $walk->get() );
-        $tn = new TrieNode( 'FOO' );
+        $tn = new TrieNode( 'FOO', null );
         $walk->append( 'Foo', 'Foo', $tn );
-        $tn = new TrieNode( 'BAR' );
+        $tn = new TrieNode( 'BAR', null );
         $walk->append( '$Bar', 'bar', $tn );
-        $tn = new TrieNode( 'BAZ' );
+        $tn = new TrieNode( 'BAZ', null );
         $walk->append( 'Baz', 'Baz', $tn );
         self::assertSame( 'BAZ', $walk->get() );
-        $walk->append( 'Qux', 'Qux', new TrieNode() );
+        $walk->append( 'Qux', 'Qux', new TrieNode( null, null ) );
         self::assertNull( $walk->get() );
     }
 
 
     public function testMerge() : void {
         $walk = new TrieWalk();
-        $walk->append( 'Foo', 'Foo', new TrieNode( 'FOO' ) );
-        $walk->append( '$Bar', 'bar', new TrieNode( 'BAR' ) );
+        $walk->append( 'Foo', 'Foo', new TrieNode( 'FOO', null ) );
+        $walk->append( '$Bar', 'bar', new TrieNode( 'BAR', null ) );
         $walk->stRest = '1';
 
         self::assertSame( 'BAR', $walk->tsTail->tnTo->xValue );
 
         $walk2 = new TrieWalk();
-        $walk2->append( 'Baz', 'Baz', new TrieNode( 'BAZ' ) );
-        $tnQux = $walk2->append( 'Qux', '$Qux', new TrieNode( 'QUX' ) );
+        $walk2->append( 'Baz', 'Baz', new TrieNode( 'BAZ', null ) );
+        $tnQux = $walk2->append( 'Qux', '$Qux', new TrieNode( 'QUX', null ) );
         $walk2->stRest = '2';
 
         $walk->merge( $walk2 );
@@ -80,8 +80,8 @@ final class TrieWalkTest extends TestCase {
     public function testMergeFromNull() : void {
         $walk = new TrieWalk();
         $walk2 = new TrieWalk();
-        $tnFoo = $walk2->append( 'Foo', 'Foo', new TrieNode( 'FOO' ) );
-        $tnBar = $walk2->append( '$Bar', 'bar', new TrieNode( 'BAR' ) );
+        $tnFoo = $walk2->append( 'Foo', 'Foo', new TrieNode( 'FOO', null ) );
+        $tnBar = $walk2->append( '$Bar', 'bar', new TrieNode( 'BAR', null ) );
         $walk->merge( $walk2 );
 
         self::assertSame( $tnFoo, $walk->tsHead );
@@ -97,11 +97,11 @@ final class TrieWalkTest extends TestCase {
 
     public function testPath() : void {
         $walk = new TrieWalk();
-        $tn = new TrieNode( 'FOO' );
+        $tn = new TrieNode( 'FOO', null );
         $walk->append( 'Foo', 'Foo', $tn );
-        $tn = new TrieNode( 'BAR' );
+        $tn = new TrieNode( 'BAR', null );
         $walk->append( '$Bar', 'bar', $tn );
-        $tn = new TrieNode( 'BAZ' );
+        $tn = new TrieNode( 'BAZ', null );
         $walk->append( 'Baz', 'Baz', $tn );
         self::assertSame( 'Foo$BarBaz', $walk->path() );
     }
@@ -109,13 +109,13 @@ final class TrieWalkTest extends TestCase {
 
     public function testPrepend() : void {
         $walk = new TrieWalk();
-        $tsFoo = $walk->prepend( 'Foo', 'Foo', new TrieNode( 'FOO' ) );
+        $tsFoo = $walk->prepend( 'Foo', 'Foo', new TrieNode( 'FOO', null ) );
         self::assertSame( $tsFoo, $walk->tsHead );
         self::assertSame( $tsFoo, $walk->tsTail );
         self::assertNull( $tsFoo->tsPrev );
         self::assertNull( $tsFoo->tsNext );
 
-        $tsBar = $walk->prepend( '$Bar', 'bar', new TrieNode( 'BAR' ) );
+        $tsBar = $walk->prepend( '$Bar', 'bar', new TrieNode( 'BAR', null ) );
         self::assertSame( $tsBar, $walk->tsHead );
         self::assertSame( $tsFoo, $walk->tsTail );
         self::assertNull( $tsBar->tsPrev );
@@ -128,11 +128,11 @@ final class TrieWalkTest extends TestCase {
 
     public function testRollback() : void {
         $walk = new TrieWalk();
-        $tnFoo = new TrieNode( 'FOO' );
+        $tnFoo = new TrieNode( 'FOO', null );
         $walk->append( 'Foo', 'Foo', $tnFoo );
-        $tnBar = new TrieNode( 'BAR' );
+        $tnBar = new TrieNode( 'BAR', null );
         $tsBar = $walk->append( '$Bar', 'bar', $tnBar );
-        $tnBaz = new TrieNode( 'BAZ' );
+        $tnBaz = new TrieNode( 'BAZ', null );
         $tsBaz = $walk->append( 'Baz', 'Baz', $tnBaz );
         $walk->stRest = '!';
         self::assertSame( $tsBaz, $walk->tsTail );

@@ -15,7 +15,7 @@ final class TrieMatchTest extends TestCase {
 
 
     public function testConstruct() : void {
-        $tn = new TrieNode();
+        $tn = new TrieNode( null, null );
         $tm = new TrieMatch( $tn, 'rest', [ 'foo' => 'bar' ] );
         self::assertSame( $tn, $tm->tn );
         self::assertSame( 'rest', $tm->stRest );
@@ -24,7 +24,7 @@ final class TrieMatchTest extends TestCase {
 
 
     public function testPath() : void {
-        $tn = new TrieNode();
+        $tn = new TrieNode( null, null );
         $tm = new TrieMatch( $tn, 'rest', [ 'Foo' => 'Bar', 'Baz' => 'Qux' ] );
         self::assertSame( 'BarQux', $tm->path() );
     }

@@ -15,7 +15,7 @@ final class TrieEdgeTest extends TestCase {
 
 
     public function testConstruct() : void {
-        $tn = new TrieNode();
+        $tn = new TrieNode( null, null );
         $tm = new TrieEdge( 'Foo', 'Bar', $tn );
         self::assertSame( 'Foo', $tm->stEdge );
         self::assertSame( 'Bar', $tm->stMatch );

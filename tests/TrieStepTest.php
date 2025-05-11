@@ -15,7 +15,7 @@ final class TrieStepTest extends TestCase {
 
 
     public function testConstructor() : void {
-        $tn = new TrieNode( 'FOO' );
+        $tn = new TrieNode( 'FOO', null );
         $ts = new TrieStep( '$Foo', 'foo', $tn );
         self::assertSame( '$Foo', $ts->stEdge );
         self::assertSame( 'foo', $ts->stMatch );

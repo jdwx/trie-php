@@ -29,9 +29,9 @@ final class TrieTest extends TestCase {
         [ $trie, $root ] = $this->newTrie();
         assert( $root instanceof TrieNodeNavigator );
         assert( $trie instanceof Trie );
-        $tnFoo = new TrieNodeNavigator( 'FOO' );
-        $tnBar = new TrieNodeNavigator( 'BAR' );
-        $tnBaz = new TrieNodeNavigator( 'BAZ' );
+        $tnFoo = new TrieNodeNavigator( 'FOO', null );
+        $tnBar = new TrieNodeNavigator( 'BAR', null );
+        $tnBaz = new TrieNodeNavigator( 'BAZ', null );
         $root->rConstants[ 'Foo' ] = $tnFoo;
         $tnFoo->rConstants[ 'Bar' ] = $tnBar;
         $tnBar->rConstants[ 'Baz' ] = $tnBaz;
@@ -74,7 +74,7 @@ final class TrieTest extends TestCase {
         assert( $root instanceof TrieNodeNavigator );
         assert( $trie instanceof Trie );
 
-        $root->add( 'FooBarBaz', 'BAZ' );
+        $root->add( 'FooBarBaz', 'BAZ', false, false );
 
         self::assertNull( $trie->get( 'Foo' ) );
         self::assertNull( $trie->get( 'FooBar' ) );
@@ -87,9 +87,9 @@ final class TrieTest extends TestCase {
         [ $trie, $root ] = $this->newTrie();
         assert( $root instanceof TrieNodeNavigator );
         assert( $trie instanceof Trie );
-        $tnFoo = new TrieNodeNavigator( 'FOO' );
-        $tnBar = new TrieNodeNavigator( 'BAR' );
-        $tnBaz = new TrieNodeNavigator( 'BAZ' );
+        $tnFoo = new TrieNodeNavigator( 'FOO', null );
+        $tnBar = new TrieNodeNavigator( 'BAR', null );
+        $tnBaz = new TrieNodeNavigator( 'BAZ', null );
         $root->rConstants[ 'Foo' ] = $tnFoo;
         $tnFoo->rConstants[ 'Bar' ] = $tnBar;
         $tnBar->rConstants[ 'Baz' ] = $tnBaz;
@@ -154,17 +154,17 @@ final class TrieTest extends TestCase {
         $trie->set( 'FooBarBaz', 'BAZ' );
 
         $r = [];
-        self::assertSame( 'FOO', $root->get( 'Foo', $r ) );
+        self::assertSame( 'FOO', $root->get( 'Foo', $r, false ) );
         $trie->set( 'Foo', 'OOF' );
-        self::assertSame( 'OOF', $root->get( 'Foo', $r ) );
+        self::assertSame( 'OOF', $root->get( 'Foo', $r, false ) );
 
-        self::assertSame( 'BAR', $root->get( 'FooBar', $r ) );
+        self::assertSame( 'BAR', $root->get( 'FooBar', $r, false ) );
         $trie->set( 'FooBar', 'RAB' );
-        self::assertSame( 'RAB', $root->get( 'FooBar', $r ) );
+        self::assertSame( 'RAB', $root->get( 'FooBar', $r, false ) );
 
-        self::assertSame( 'BAZ', $root->get( 'FooBarBaz', $r ) );
+        self::assertSame( 'BAZ', $root->get( 'FooBarBaz', $r, false ) );
         $trie->set( 'FooBarBaz', 'ZAB' );
-        self::assertSame( 'ZAB', $root->get( 'FooBarBaz', $r ) );
+        self::assertSame( 'ZAB', $root->get( 'FooBarBaz', $r, false ) );
 
         $trie->set( 'Foo${Bar}Qux', 'QUX' );
         self::assertSame(
@@ -182,9 +182,9 @@ final class TrieTest extends TestCase {
         [ $trie, $root ] = $this->newTrie( true );
         assert( $root instanceof TrieNode );
         assert( $trie instanceof Trie );
-        $root->add( 'Foo', 'FOO' );
-        $root->add( 'FooBar', 'BAR' );
-        $root->add( 'FooBarBaz', 'BAZ' );
+        $root->add( 'Foo', 'FOO', false, false );
+        $root->add( 'FooBar', 'BAR', false, false );
+        $root->add( 'FooBarBaz', 'BAZ', false, false );
 
         self::assertSame( 'FOO', $trie->get( 'Foo' ) );
         self::assertSame( 'BAR', $trie->get( 'FooBar' ) );
@@ -193,6 +193,43 @@ final class TrieTest extends TestCase {
         self::assertSame( 'FOO', $trie->get( 'Foo' ) );
         self::assertNull( $trie->get( 'FooBar' ) );
         self::assertSame( 'BAZ', $trie->get( 'FooBarBaz' ) );
+    }
+
+
+    public function testVar() : void {
+        [ $trie, $root ] = $this->newTrie( true );
+        assert( $root instanceof TrieNode );
+        assert( $trie instanceof Trie );
+        $root->add( 'Foo${Bar}Baz', 'BAZ', true, false );
+        self::assertSame( 'BAZ', $trie[ 'FooQuxBaz' ] );
+        self::assertSame( 'Qux', $trie->var( '$Bar' ) );
+        self::assertSame( 'Corge', $trie->var( '$Quux', 'Corge' ) );
+        self::assertNull( $trie->var( '$Quux' ) );
+    }
+
+
+    public function testVarEx() : void {
+        [ $trie, $root ] = $this->newTrie( true );
+        assert( $root instanceof TrieNode );
+        assert( $trie instanceof Trie );
+        $root->add( 'Foo${Bar}Baz', 'BAZ', true, false );
+        self::assertSame( 'BAZ', $trie[ 'FooQuxBaz' ] );
+        self::assertSame( 'Qux', $trie->varEx( '$Bar' ) );
+        self::assertSame( 'Corge', $trie->varEx( '$Quux', 'Corge' ) );
+        self::expectException( InvalidArgumentException::class );
+        $trie->varEx( '$Quux' );
+    }
+
+
+    public function testVariables() : void {
+        [ $trie, $root ] = $this->newTrie( true );
+        assert( $root instanceof TrieNode );
+        assert( $trie instanceof Trie );
+        $root->add( 'Foo${Bar}Baz', 'BAZ', true, false );
+        self::assertSame( 'BAZ', $trie[ 'FooQuxBaz' ] );
+        $r = $trie->variables();
+        self::assertCount( 1, $r );
+        self::assertSame( 'Qux', $r[ '$Bar' ] );
     }
 
 
