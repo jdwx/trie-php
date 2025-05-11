@@ -242,6 +242,17 @@ final class TrieNodeNavigatorTest extends TestCase {
     }
 
 
+    public function testGetForRepeats() : void {
+        $root = new TrieNodeNavigator( null, null );
+        $root->add( 'Foo${Bar}Baz${Bar}', 'FOO', true, false );
+        $r = [];
+        self::assertSame( 'FOO', $root->get( 'FooQuxBazQuux', $r, true ) );
+        self::assertCount( 1, $r );
+        self::assertSame( 'Qux', $r[ '$Bar' ][ 0 ] );
+        self::assertSame( 'Quux', $r[ '$Bar' ][ 1 ] );
+    }
+
+
     /**
      * @return void
      */

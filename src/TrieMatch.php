@@ -54,4 +54,26 @@ class TrieMatch {
     }
 
 
+    /**
+     * @return array<string, string|list<string>>
+     */
+    public function variables() : array {
+        $r = [];
+        foreach ( $this->rMatches as $tp ) {
+            if ( $tp->stKey !== $tp->stMatch ) {
+                if ( isset( $r[ $tp->stKey ] ) ) {
+                    if ( ! is_array( $r[ $tp->stKey ] ) ) {
+                        $r[ $tp->stKey ] = [ $r[ $tp->stKey ] ];
+                    }
+                    /** @phpstan-ignore-next-line */
+                    $r[ $tp->stKey ][] = $tp->stMatch;
+                } else {
+                    $r[ $tp->stKey ] = $tp->stMatch;
+                }
+            }
+        }
+        return $r;
+    }
+
+
 }

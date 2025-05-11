@@ -107,19 +107,7 @@ class TrieNodeNavigator extends TrieNode {
             }
             $o_nstExtra = $match->stRest;
         }
-        foreach ( $match->rMatches as $tp ) {
-            if ( $tp->stKey !== $tp->stMatch ) {
-                if ( isset( $o_rVariables[ $tp->stKey ] ) ) {
-                    if ( ! is_array( $o_rVariables[ $tp->stKey ] ) ) {
-                        $o_rVariables[ $tp->stKey ] = [ $o_rVariables[ $tp->stKey ] ];
-                    }
-                    /** @phpstan-ignore-next-line */
-                    $o_rVariables[ $tp->stKey ][] = $tp->stMatch;
-                } else {
-                    $o_rVariables[ $tp->stKey ] = $tp->stMatch;
-                }
-            }
-        }
+        $o_rVariables = $match->variables();
         return $match->tn->xValue;
     }
 

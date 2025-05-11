@@ -21,7 +21,7 @@ final class TrieMatchTest extends TestCase {
         self::assertSame( $tn, $tm->tn );
         self::assertSame( 'rest', $tm->stRest );
         self::assertSame( 'Foo', $tm->rMatches[ 0 ]->stKey );
-        self::assertSame( 'Bar', $tm->rMatches[ 0 ]->stMatch );;
+        self::assertSame( 'Bar', $tm->rMatches[ 0 ]->stMatch );
     }
 
 
@@ -56,6 +56,17 @@ final class TrieMatchTest extends TestCase {
         $tn = new TrieNode( 'Foo', null );
         $tm = new TrieMatch( $tn, 'rest', [] );
         self::assertSame( 'Foo', $tm->value() );
+    }
+
+
+    public function testVariables() : void {
+        $tn = new TrieNode( 'Foo', null );
+        $tm = new TrieMatch( $tn, 'rest', [
+            new TriePair( 'Foo', 'Bar' ),
+            new TriePair( '$Baz', 'Qux' ),
+            new TriePair( '$Baz', 'Quux' ),
+        ] );
+        self::assertSame( [ 'Foo' => 'Bar', '$Baz' => [ 'Qux', 'Quux' ] ], $tm->variables() );
     }
 
 
