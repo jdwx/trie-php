@@ -65,7 +65,6 @@ class TrieMatch {
                     if ( ! is_array( $r[ $tp->stKey ] ) ) {
                         $r[ $tp->stKey ] = [ $r[ $tp->stKey ] ];
                     }
-                    /** @phpstan-ignore-next-line */
                     $r[ $tp->stKey ][] = $tp->stMatch;
                 } else {
                     $r[ $tp->stKey ] = $tp->stMatch;
