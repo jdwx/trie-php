@@ -30,4 +30,18 @@ final class TrieMatchTest extends TestCase {
     }
 
 
+    public function testRest() : void {
+        $tn = new TrieNode( null, null );
+        $tm = new TrieMatch( $tn, 'Foo', [] );
+        self::assertSame( 'Foo', $tm->rest() );
+    }
+
+
+    public function testValue() : void {
+        $tn = new TrieNode( 'Foo', null );
+        $tm = new TrieMatch( $tn, 'rest', [] );
+        self::assertSame( 'Foo', $tm->value() );
+    }
+
+
 }

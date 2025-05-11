@@ -23,4 +23,14 @@ class TrieMatch {
     }
 
 
+    public function rest() : string {
+        return $this->stRest;
+    }
+
+
+    public function value() : mixed {
+        return $this->tn->xValue;
+    }
+
+
 }
