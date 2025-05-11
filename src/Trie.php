@@ -53,6 +53,12 @@ class Trie implements ArrayAccess {
     }
 
 
+    /** @return iterable<TrieMatch> */
+    public function match( string $i_stMatch ) : iterable {
+        return $this->tnRoot->match( $i_stMatch, $this->bAllowVariables, true, [] );
+    }
+
+
     /**
      * @param string $offset
      * @return bool

@@ -103,6 +103,34 @@ final class TrieTest extends TestCase {
     }
 
 
+    public function testMatch() : void {
+        [ $trie, $root ] = $this->newTrie();
+        assert( $root instanceof TrieNodeNavigator );
+        assert( $trie instanceof Trie );
+        $tnFoo = new TrieNodeNavigator( 'FOO', null );
+        $tnBar = new TrieNodeNavigator( 'BAR', null );
+        $tnBaz = new TrieNodeNavigator( 'BAZ', null );
+        $root->rConstants[ 'Foo' ] = $tnFoo;
+        $tnFoo->rConstants[ 'Bar' ] = $tnBar;
+        $tnBar->rConstants[ 'Baz' ] = $tnBaz;
+
+        $r = iterator_to_array( $trie->match( 'FooBarBazQux' ), false );
+        self::assertCount( 3, $r );
+
+        self::assertSame( 'FOO', $r[ 0 ]->value() );
+        self::assertSame( 'BAR', $r[ 1 ]->value() );
+        self::assertSame( 'BAZ', $r[ 2 ]->value() );
+
+        self::assertSame( 'Foo', $r[ 0 ]->path() );
+        self::assertSame( 'FooBar', $r[ 1 ]->path() );
+        self::assertSame( 'FooBarBaz', $r[ 2 ]->path() );
+
+        self::assertSame( 'BarBazQux', $r[ 0 ]->rest() );
+        self::assertSame( 'BazQux', $r[ 1 ]->rest() );
+        self::assertSame( 'Qux', $r[ 2 ]->rest() );
+    }
+
+
     public function testOffsetExistsForNotString() : void {
         [ $trie, $root ] = $this->newTrie();
         assert( $root instanceof TrieNode );
