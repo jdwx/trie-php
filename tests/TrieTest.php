@@ -83,6 +83,21 @@ final class TrieTest extends TestCase {
     }
 
 
+    public function testGetForRepeatVariables() : void {
+        [ $trie, $root ] = $this->newTrie( true );
+        assert( $root instanceof TrieNodeNavigator );
+        assert( $trie instanceof Trie );
+        $root->add( 'Foo${Bar}Baz${Bar}', 'FOO', true, false );
+
+        $r = [];
+        self::assertSame( 'FOO', $trie->get( 'FooQuxBazQuux', $r ) );
+        assert( is_array( $r ) );
+        self::assertIsArray( $r[ '$Bar' ] );
+        self::assertSame( 'Qux', $r[ '$Bar' ][ 0 ] );
+        self::assertSame( 'Quux', $r[ '$Bar' ][ 1 ] );
+    }
+
+
     public function testHas() : void {
         [ $trie, $root ] = $this->newTrie();
         assert( $root instanceof TrieNodeNavigator );

@@ -38,7 +38,7 @@ class Trie implements ArrayAccess {
 
 
     /**
-     * @param array<string,string>|null &$o_nrVariables
+     * @param array<string,string|list<string>>|null &$o_nrVariables
      * @phpstan-ignore parameterByRef.unusedType
      */
     public function get( string $i_stPath, ?array &$o_nrVariables = null, ?string &$o_nstRest = null ) : mixed {

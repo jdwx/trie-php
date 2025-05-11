@@ -13,13 +13,34 @@ class TrieMatch {
     /**
      * @param TrieNode $tn
      * @param string $stRest
-     * @param array<string, string> $rMatches
+     * @param list<TriePair> $rMatches
      */
     public function __construct( public TrieNode $tn, public string $stRest, public array $rMatches ) {}
 
 
+    public function key() : string {
+        $r = [];
+        foreach ( $this->matches() as $stKey => $stMatch ) {
+            $r[] = $stKey;
+        }
+        return join( '', $r );
+    }
+
+
+    /** @return iterable<string, string> */
+    public function matches() : iterable {
+        foreach ( $this->rMatches as $tp ) {
+            yield $tp->stKey => $tp->stMatch;
+        }
+    }
+
+
     public function path() : string {
-        return join( '', $this->rMatches );
+        $r = [];
+        foreach ( $this->matches() as $stMatch ) {
+            $r[] = $stMatch;
+        }
+        return join( '', $r );
     }
 
 

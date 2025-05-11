@@ -419,7 +419,8 @@ final class TrieNodeNavigatorTest extends TestCase {
         $tm = $r[ 0 ];
         self::assertSame( 'FOO', $tm->tn->xValue );
         self::assertSame( '', $tm->stRest );
-        self::assertSame( [ 'Foo' => 'Foo' ], $tm->rMatches );
+        self::assertSame( 'Foo', $tm->rMatches[ 0 ]->stKey );
+        self::assertSame( 'Foo', $tm->rMatches[ 0 ]->stMatch );
 
         $r = self::i2a( $tnRoot->match( 'Foo', true, false, [] ) );
         self::assertCount( 1, $r );
@@ -430,29 +431,46 @@ final class TrieNodeNavigatorTest extends TestCase {
         $tm = $r[ 0 ];
         self::assertSame( 'FOO', $tm->tn->xValue );
         self::assertSame( 'Bar', $tm->stRest );
-        self::assertSame( [ 'Foo' => 'Foo' ], $tm->rMatches );
+        self::assertSame( 'Foo', $tm->rMatches[ 0 ]->stKey );
+        self::assertSame( 'Foo', $tm->rMatches[ 0 ]->stMatch );
 
         $tm = $r[ 1 ];
         self::assertSame( 'BAR', $tm->tn->xValue );
         self::assertSame( '', $tm->stRest );
-        self::assertSame( [ 'Foo' => 'Foo', 'Bar' => 'Bar' ], $tm->rMatches );
+        self::assertSame( 'Foo', $tm->rMatches[ 0 ]->stKey );
+        self::assertSame( 'Foo', $tm->rMatches[ 0 ]->stMatch );
+        self::assertSame( 'Bar', $tm->rMatches[ 1 ]->stKey );
+        self::assertSame( 'Bar', $tm->rMatches[ 1 ]->stMatch );
 
         $r = self::i2a( $tnRoot->match( 'FooBarBaz', true, true, [] ) );
         self::assertCount( 3, $r );
         $tm = $r[ 0 ];
         self::assertSame( 'FOO', $tm->tn->xValue );
         self::assertSame( 'BarBaz', $tm->stRest );
-        self::assertSame( [ 'Foo' => 'Foo' ], $tm->rMatches );
+        self::assertSame( 'Foo', $tm->rMatches[ 0 ]->stKey );
+        self::assertSame( 'Foo', $tm->rMatches[ 0 ]->stMatch );
 
         $tm = $r[ 1 ];
         self::assertSame( 'BAR', $tm->tn->xValue );
         self::assertSame( 'Baz', $tm->stRest );
-        self::assertSame( [ 'Foo' => 'Foo', 'Bar' => 'Bar' ], $tm->rMatches );
+        self::assertSame( 'Foo', $tm->rMatches[ 0 ]->stKey );
+        self::assertSame( 'Foo', $tm->rMatches[ 0 ]->stMatch );
+        self::assertSame( 'Bar', $tm->rMatches[ 1 ]->stKey );
+        self::assertSame( 'Bar', $tm->rMatches[ 1 ]->stMatch );
 
         $tm = $r[ 2 ];
         self::assertSame( 'BAZ', $tm->tn->xValue );
         self::assertSame( '', $tm->stRest );
-        self::assertSame( [ 'Foo' => 'Foo', 'Bar' => 'Bar', 'Baz' => 'Baz' ], $tm->rMatches );
+        self::assertSame( 'Foo', $tm->rMatches[ 0 ]->stKey );
+        self::assertSame( 'Foo', $tm->rMatches[ 0 ]->stMatch );
+        self::assertSame( 'Bar', $tm->rMatches[ 1 ]->stKey );
+        self::assertSame( 'Bar', $tm->rMatches[ 1 ]->stMatch );
+        self::assertSame( 'Foo', $tm->rMatches[ 0 ]->stKey );
+        self::assertSame( 'Foo', $tm->rMatches[ 0 ]->stMatch );
+        self::assertSame( 'Bar', $tm->rMatches[ 1 ]->stKey );
+        self::assertSame( 'Bar', $tm->rMatches[ 1 ]->stMatch );
+        self::assertSame( 'Baz', $tm->rMatches[ 2 ]->stKey );
+        self::assertSame( 'Baz', $tm->rMatches[ 2 ]->stMatch );
 
     }
 
@@ -469,7 +487,8 @@ final class TrieNodeNavigatorTest extends TestCase {
         $tm = $r[ 0 ];
         self::assertSame( 'FOO', $tm->tn->xValue );
         self::assertSame( '', $tm->stRest );
-        self::assertSame( [ 'Foo' => 'Foo' ], $tm->rMatches );
+        self::assertSame( 'Foo', $tm->rMatches[ 0 ]->stKey );
+        self::assertSame( 'Foo', $tm->rMatches[ 0 ]->stMatch );
 
         # This won't work because expansion is disabled.
         $r = self::i2a( $root->match( 'FooQux', true, false, [] ) );
@@ -477,19 +496,24 @@ final class TrieNodeNavigatorTest extends TestCase {
         $tm = $r[ 0 ];
         self::assertSame( 'FOO', $tm->tn->xValue );
         self::assertSame( 'Qux', $tm->stRest );
-        self::assertSame( [ 'Foo' => 'Foo' ], $tm->rMatches );
+        self::assertSame( 'Foo', $tm->rMatches[ 0 ]->stKey );
+        self::assertSame( 'Foo', $tm->rMatches[ 0 ]->stMatch );
 
         $r = self::i2a( $root->match( 'Foo$Bar', true, false, [] ) );
         self::assertCount( 2, $r );
         $tm = $r[ 0 ];
         self::assertSame( 'FOO', $tm->tn->xValue );
         self::assertSame( '$Bar', $tm->stRest );
-        self::assertSame( [ 'Foo' => 'Foo' ], $tm->rMatches );
+        self::assertSame( 'Foo', $tm->rMatches[ 0 ]->stKey );
+        self::assertSame( 'Foo', $tm->rMatches[ 0 ]->stMatch );
 
         $tm = $r[ 1 ];
         self::assertSame( 'BAR', $tm->tn->xValue );
         self::assertSame( '', $tm->stRest );
-        self::assertSame( [ 'Foo' => 'Foo', '$Bar' => '$Bar' ], $tm->rMatches );
+        self::assertSame( 'Foo', $tm->rMatches[ 0 ]->stKey );
+        self::assertSame( 'Foo', $tm->rMatches[ 0 ]->stMatch );
+        self::assertSame( '$Bar', $tm->rMatches[ 1 ]->stKey );
+        self::assertSame( '$Bar', $tm->rMatches[ 1 ]->stMatch );
 
     }
 
@@ -505,12 +529,16 @@ final class TrieNodeNavigatorTest extends TestCase {
         $tm = $r[ 0 ];
         self::assertSame( 'FOO', $tm->tn->xValue );
         self::assertSame( 'Qux', $tm->stRest );
-        self::assertSame( [ 'Foo' => 'Foo' ], $tm->rMatches );
+        self::assertSame( 'Foo', $tm->rMatches[ 0 ]->stKey );
+        self::assertSame( 'Foo', $tm->rMatches[ 0 ]->stMatch );
 
         $tm = $r[ 1 ];
         self::assertSame( 'BAR', $tm->tn->xValue );
         self::assertSame( '', $tm->stRest );
-        self::assertSame( [ 'Foo' => 'Foo', '$Bar' => 'Qux' ], $tm->rMatches );
+        self::assertSame( 'Foo', $tm->rMatches[ 0 ]->stKey );
+        self::assertSame( 'Foo', $tm->rMatches[ 0 ]->stMatch );
+        self::assertSame( '$Bar', $tm->rMatches[ 1 ]->stKey );
+        self::assertSame( 'Qux', $tm->rMatches[ 1 ]->stMatch );
 
         $r = self::i2a(
             $root->match( 'FooQuxBaz', true, true, [] ) );
@@ -518,22 +546,34 @@ final class TrieNodeNavigatorTest extends TestCase {
         $tm = $r[ 0 ];
         self::assertSame( 'FOO', $tm->tn->xValue );
         self::assertSame( 'QuxBaz', $tm->stRest );
-        self::assertSame( [ 'Foo' => 'Foo' ], $tm->rMatches );
+        self::assertSame( 'Foo', $tm->rMatches[ 0 ]->stKey );
+        self::assertSame( 'Foo', $tm->rMatches[ 0 ]->stMatch );
 
         $tm = $r[ 1 ];
         self::assertSame( 'BAR', $tm->tn->xValue );
         self::assertSame( '', $tm->stRest );
-        self::assertSame( [ 'Foo' => 'Foo', '$Bar' => 'QuxBaz' ], $tm->rMatches );
+        self::assertSame( 'Foo', $tm->rMatches[ 0 ]->stKey );
+        self::assertSame( 'Foo', $tm->rMatches[ 0 ]->stMatch );
+        self::assertSame( '$Bar', $tm->rMatches[ 1 ]->stKey );
+        self::assertSame( 'QuxBaz', $tm->rMatches[ 1 ]->stMatch );
 
         $tm = $r[ 2 ];
         self::assertSame( 'BAR', $tm->tn->xValue );
         self::assertSame( 'Baz', $tm->stRest );
-        self::assertSame( [ 'Foo' => 'Foo', '$Bar' => 'Qux' ], $tm->rMatches );
+        self::assertSame( 'Foo', $tm->rMatches[ 0 ]->stKey );
+        self::assertSame( 'Foo', $tm->rMatches[ 0 ]->stMatch );
+        self::assertSame( '$Bar', $tm->rMatches[ 1 ]->stKey );
+        self::assertSame( 'Qux', $tm->rMatches[ 1 ]->stMatch );
 
         $tm = $r[ 3 ];
         self::assertSame( 'BAZ', $tm->tn->xValue );
         self::assertSame( '', $tm->stRest );
-        self::assertSame( [ 'Foo' => 'Foo', '$Bar' => 'Qux', 'Baz' => 'Baz' ], $tm->rMatches );
+        self::assertSame( 'Foo', $tm->rMatches[ 0 ]->stKey );
+        self::assertSame( 'Foo', $tm->rMatches[ 0 ]->stMatch );
+        self::assertSame( '$Bar', $tm->rMatches[ 1 ]->stKey );
+        self::assertSame( 'Qux', $tm->rMatches[ 1 ]->stMatch );
+        self::assertSame( 'Baz', $tm->rMatches[ 2 ]->stKey );
+        self::assertSame( 'Baz', $tm->rMatches[ 2 ]->stMatch );
 
     }
 
@@ -556,12 +596,22 @@ final class TrieNodeNavigatorTest extends TestCase {
         $tm = $tnRoot->matchOne( 'FooQuxBaz', true, true );
         self::assertSame( 'BAZ', $tm->tn->xValue );
         self::assertSame( '', $tm->stRest );
-        self::assertSame( [ 'Foo' => 'Foo', '$Bar' => 'Qux', 'Baz' => 'Baz' ], $tm->rMatches );
+        self::assertSame( 'Foo', $tm->rMatches[ 0 ]->stKey );
+        self::assertSame( 'Foo', $tm->rMatches[ 0 ]->stMatch );
+        self::assertSame( '$Bar', $tm->rMatches[ 1 ]->stKey );
+        self::assertSame( 'Qux', $tm->rMatches[ 1 ]->stMatch );
+        self::assertSame( 'Baz', $tm->rMatches[ 2 ]->stKey );
+        self::assertSame( 'Baz', $tm->rMatches[ 2 ]->stMatch );
 
         $tm = $tnRoot->matchOne( 'FooQuxBazQuux', true, true );
         self::assertSame( 'BAZ', $tm->tn->xValue );
         self::assertSame( 'Quux', $tm->stRest );
-        self::assertSame( [ 'Foo' => 'Foo', '$Bar' => 'Qux', 'Baz' => 'Baz' ], $tm->rMatches );
+        self::assertSame( 'Foo', $tm->rMatches[ 0 ]->stKey );
+        self::assertSame( 'Foo', $tm->rMatches[ 0 ]->stMatch );
+        self::assertSame( '$Bar', $tm->rMatches[ 1 ]->stKey );
+        self::assertSame( 'Qux', $tm->rMatches[ 1 ]->stMatch );
+        self::assertSame( 'Baz', $tm->rMatches[ 2 ]->stKey );
+        self::assertSame( 'Baz', $tm->rMatches[ 2 ]->stMatch );
     }
 
 
@@ -583,6 +633,19 @@ final class TrieNodeNavigatorTest extends TestCase {
         $tnRoot->linkConstant( 'Foo', 'FOO' );
 
         self::assertNull( $tnRoot->matchOne( 'Bar', true, false ) );
+    }
+
+
+    public function testMatchOneForRepeat() : void {
+        $root = new TrieNodeNavigator( null, null );
+        $root->add( 'Foo', 'FOO', true, false );
+        $root->add( 'Foo$Bar', 'BAR', true, false );
+        $root->add( 'Foo${Bar}Foo', 'OOF', true, false );
+        $root->add( 'Foo${Bar}Foo${Bar}', 'RAB', true, false );
+
+        $match = $root->matchOne( 'FooBazFooQux', true, true );
+        self::assertSame( 'FooBazFooQux', $match->path() );
+        self::assertSame( 'Foo$BarFoo$Bar', $match->key() );
     }
 
 

@@ -70,7 +70,7 @@ class TrieNodeNavigator extends TrieNode {
             return static::cast( $tnChild->addVariable( $stVarName, $i_xValue, $i_bAllowOverwrite ) );
         }
         $tnChild = $tnChild->addVariable( $stVarName, null, $i_bAllowOverwrite );
-        return static::cast( $tnChild->addConstant( $stRest, $i_xValue, $i_bAllowOverwrite ) );
+        return static::cast( $tnChild->add( $stRest, $i_xValue, $i_bAllowVariables, $i_bAllowOverwrite ) );
     }
 
 
@@ -93,7 +93,7 @@ class TrieNodeNavigator extends TrieNode {
     }
 
 
-    /** @param array<string, string> &$o_rVariables */
+    /** @param array<string, string|list<string>> &$o_rVariables */
     public function get( string  $i_stPath, array &$o_rVariables, bool $i_bAllowVariables,
                          ?string &$o_nstExtra = null ) : mixed {
         $o_rVariables = [];
@@ -107,9 +107,17 @@ class TrieNodeNavigator extends TrieNode {
             }
             $o_nstExtra = $match->stRest;
         }
-        foreach ( $match->rMatches as $stKey => $stValue ) {
-            if ( $stKey !== $stValue ) {
-                $o_rVariables[ $stKey ] = $stValue;
+        foreach ( $match->rMatches as $tp ) {
+            if ( $tp->stKey !== $tp->stMatch ) {
+                if ( isset( $o_rVariables[ $tp->stKey ] ) ) {
+                    if ( ! is_array( $o_rVariables[ $tp->stKey ] ) ) {
+                        $o_rVariables[ $tp->stKey ] = [ $o_rVariables[ $tp->stKey ] ];
+                    }
+                    /** @phpstan-ignore-next-line */
+                    $o_rVariables[ $tp->stKey ][] = $tp->stMatch;
+                } else {
+                    $o_rVariables[ $tp->stKey ] = $tp->stMatch;
+                }
             }
         }
         return $match->tn->xValue;
@@ -130,7 +138,7 @@ class TrieNodeNavigator extends TrieNode {
 
 
     /**
-     * @param array<string, string> $i_rMatches
+     * @param list<TriePair> $i_rMatches
      * @return iterable<TrieMatch>
      */
     public function match( string $i_stMatch, bool $i_bAllowVariables, bool $i_bExpandVariables, array $i_rMatches ) : iterable {
@@ -141,7 +149,8 @@ class TrieNodeNavigator extends TrieNode {
         foreach ( $this->constants() as $stKey => $tnChild ) {
             if ( str_starts_with( $i_stMatch, $stKey ) ) {
                 $stRest = substr( $i_stMatch, strlen( $stKey ) );
-                $rMatches = $i_rMatches + [ $stKey => $stKey ];
+                $rMatches = $i_rMatches;
+                $rMatches[] = new TriePair( $stKey, $stKey );
                 yield from $tnChild->match( $stRest, $i_bAllowVariables, $i_bExpandVariables, $rMatches );
             }
         }
@@ -153,7 +162,8 @@ class TrieNodeNavigator extends TrieNode {
             [ $stVarName, $stPathAfterVariable ] = self::extractVariableName( $i_stMatch );
             if ( is_string( $stVarName ) && $this->hasVariable( $stVarName ) ) {
                 assert( is_string( $stPathAfterVariable ) );
-                $rMatches = $i_rMatches + [ $stVarName => $stVarName ];
+                $rMatches = $i_rMatches;
+                $rMatches[] = new TriePair( $stVarName, $stVarName );
                 yield from $this->variableEx( $stVarName )->match(
                     $stPathAfterVariable, true, false, $rMatches
                 );
@@ -163,7 +173,8 @@ class TrieNodeNavigator extends TrieNode {
 
         foreach ( $this->variables() as $stVarName => $tnChild ) {
             foreach ( $tnChild->findMatchesAfterVariable( $i_stMatch ) as $stVarValue => $stSuffix ) {
-                $rMatches = $i_rMatches + [ $stVarName => $stVarValue ];
+                $rMatches = $i_rMatches;
+                $rMatches[] = new TriePair( $stVarName, $stVarValue );
                 yield from $tnChild->match( $stSuffix, true, true, $rMatches );
             }
         }
@@ -174,11 +185,12 @@ class TrieNodeNavigator extends TrieNode {
     public function matchOne( string $i_stMatch, bool $i_bAllowVariables, bool $i_bExpandVariables ) : ?TrieMatch {
         $uMaxScore = 0;
         $rMatches = [];
-        $r = iterator_to_array( $this->match( $i_stMatch, $i_bAllowVariables, $i_bExpandVariables, [] ), false );
-        foreach ( $r as $tm ) {
+        foreach ( $this->match( $i_stMatch, $i_bAllowVariables, $i_bExpandVariables, [] ) as $tm ) {
+            /** @phpstan-ignore-next-line */
+            assert( $tm instanceof TrieMatch );
             $uScore = '' === $tm->stRest ? 1 : 0;
-            foreach ( $tm->rMatches as $stKey => $stValue ) {
-                if ( $stKey === $stValue ) {
+            foreach ( $tm->matches() as $stKey => $stMatch ) {
+                if ( $stKey === $stMatch ) {
                     $uScore += 100000;
                 } else {
                     $uScore += 1;
@@ -206,8 +218,7 @@ class TrieNodeNavigator extends TrieNode {
             $rPaths[] = $stPath;
         }
         throw new \RuntimeException(
-            'Ambiguous variable match for "' . $i_stMatch . '" in: ' .
-            join( ', ', $rPaths )
+            'Ambiguous variable match for "' . $i_stMatch . '" in: ' . join( ', ', $rPaths )
         );
     }
 
