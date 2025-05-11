@@ -94,11 +94,18 @@ class TrieNodeNavigator extends TrieNode {
 
 
     /** @param array<string, string> &$o_rVariables */
-    public function get( string $i_stPath, array &$o_rVariables, bool $i_bAllowVariables ) : mixed {
+    public function get( string  $i_stPath, array &$o_rVariables, bool $i_bAllowVariables,
+                         ?string &$o_nstExtra = null ) : mixed {
         $o_rVariables = [];
         $match = $this->matchOne( $i_stPath, $i_bAllowVariables, true );
-        if ( is_null( $match ) || $match->stRest ) {
+        if ( is_null( $match ) ) {
             return null;
+        }
+        if ( ! empty( $match->stRest ) ) {
+            if ( ! is_string( $o_nstExtra ) ) {
+                return null;
+            }
+            $o_nstExtra = $match->stRest;
         }
         foreach ( $match->rMatches as $stKey => $stValue ) {
             if ( $stKey !== $stValue ) {
@@ -109,12 +116,13 @@ class TrieNodeNavigator extends TrieNode {
     }
 
 
-    public function has( string $i_stPath, bool $i_bAllowVariables, bool $i_bSubstituteVariables ) : bool {
+    public function has( string $i_stPath, bool $i_bAllowVariables, bool $i_bSubstituteVariables,
+                         bool   $i_bAllowExtra ) : bool {
         $match = $this->matchOne( $i_stPath, $i_bAllowVariables, $i_bSubstituteVariables );
         if ( is_null( $match ) ) {
             return false;
         }
-        if ( $match->stRest ) {
+        if ( $match->stRest && ! $i_bAllowExtra ) {
             return false;
         }
         return ! is_null( $match->tn->xValue );

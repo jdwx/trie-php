@@ -23,8 +23,11 @@ class Trie implements ArrayAccess {
     /** @var array<string, string> */
     private array $rOffsetGetVariables = [];
 
+    private ?string $nstOffsetGetRest = null;
 
-    public function __construct( private readonly bool $bAllowVariables = false ) {
+
+    public function __construct( private readonly bool $bAllowVariables = false,
+                                 private readonly bool $bAllowExtra = false ) {
         $this->tnRoot = new TrieNodeNavigator( null, null );
     }
 
@@ -38,14 +41,15 @@ class Trie implements ArrayAccess {
      * @param array<string,string>|null &$o_nrVariables
      * @phpstan-ignore parameterByRef.unusedType
      */
-    public function get( string $i_stPath, ?array &$o_nrVariables = null ) : mixed {
+    public function get( string $i_stPath, ?array &$o_nrVariables = null, ?string &$o_nstRest = null ) : mixed {
         $o_nrVariables = [];
-        return $this->tnRoot->get( $i_stPath, $o_nrVariables, $this->bAllowVariables );
+        $o_nstRest = $this->bAllowExtra ? '' : null;
+        return $this->tnRoot->get( $i_stPath, $o_nrVariables, $this->bAllowVariables, $o_nstRest );
     }
 
 
-    public function has( string $i_stPath, bool $i_bSubstituteVariables = false ) : bool {
-        return $this->tnRoot->has( $i_stPath, $this->bAllowVariables, $i_bSubstituteVariables );
+    public function has( string $i_stPath, bool $i_bSubstituteVariables = false, bool $i_bAllowExtra = false ) : bool {
+        return $this->tnRoot->has( $i_stPath, $this->bAllowVariables, $i_bSubstituteVariables, $i_bAllowExtra );
     }
 
 
@@ -59,7 +63,7 @@ class Trie implements ArrayAccess {
         if ( ! is_string( $offset ) ) {
             throw new InvalidArgumentException( 'Trie keys must be strings.' );
         }
-        return $this->has( $offset );
+        return $this->has( $offset, $this->bAllowVariables, $this->bAllowExtra );
     }
 
 
@@ -73,7 +77,8 @@ class Trie implements ArrayAccess {
         if ( ! is_string( $offset ) ) {
             throw new InvalidArgumentException( 'Trie keys must be strings.' );
         }
-        return $this->get( $offset, $this->rOffsetGetVariables );
+        $this->nstOffsetGetRest = $this->bAllowExtra ? '' : null;
+        return $this->get( $offset, $this->rOffsetGetVariables, $this->nstOffsetGetRest );
     }
 
 
@@ -101,6 +106,20 @@ class Trie implements ArrayAccess {
             throw new InvalidArgumentException( 'Trie keys must be strings.' );
         }
         $this->unset( $offset );
+    }
+
+
+    public function rest( ?string $i_nstDefault = null ) : ?string {
+        return $this->nstOffsetGetRest ?? $i_nstDefault;
+    }
+
+
+    public function restEx( ?string $i_nstDefault = null ) : string {
+        $nst = $this->rest( $i_nstDefault );
+        if ( is_string( $nst ) ) {
+            return $nst;
+        }
+        throw new \RuntimeException( 'No rest value available' );
     }
 
 

@@ -232,6 +232,13 @@ final class TrieNodeNavigatorTest extends TestCase {
         self::assertEmpty( $r );
         self::assertNull( $root->get( 'FooBarBazQux', $r, false ) );
         self::assertEmpty( $r );
+
+        $st = '';
+        self::assertSame(
+            'BAZ',
+            $root->get( 'FooBarBazQux', $r, true, $st )
+        );
+        self::assertSame( 'Qux', $st );
     }
 
 
@@ -281,19 +288,21 @@ final class TrieNodeNavigatorTest extends TestCase {
         $tnBar = $tnFoo->linkVariable( '$Bar', 'BAR' );
         $tnBar->linkConstant( 'Baz', 'BAZ' );
 
-        self::assertTrue( $tnRoot->has( 'Foo', true, false ) );
-        self::assertTrue( $tnRoot->has( 'Foo$Bar', true, false ) );
-        self::assertFalse( $tnRoot->has( 'Foo$Bar', false, false ) );
-        self::assertTrue( $tnRoot->has( 'Foo${Bar}Baz', true, false ) );
-        self::assertFalse( $tnRoot->has( 'Foo$Qux', true, false ) );
-        self::assertTrue( $tnRoot->has( 'FooQuux', true, true ) );
+        self::assertTrue( $tnRoot->has( 'Foo', true, false, false ) );
+        self::assertTrue( $tnRoot->has( 'Foo$Bar', true, false, false ) );
+        self::assertFalse( $tnRoot->has( 'Foo$Bar', false, false, false ) );
+        self::assertTrue( $tnRoot->has( 'Foo${Bar}Baz', true, false, false ) );
+        self::assertFalse( $tnRoot->has( 'Foo$Qux', true, false, false ) );
+        self::assertTrue( $tnRoot->has( 'FooQuux', true, true, false ) );
     }
 
 
     public function testHasForNothing() : void {
         $tnRoot = new TrieNodeNavigator( null, null );
         $tnRoot->linkConstant( 'Foo', 'FOO' );
-        self::assertFalse( $tnRoot->has( 'Bar', true, false ) );
+        self::assertFalse( $tnRoot->has( 'Bar', true, false, false ) );
+        self::assertFalse( $tnRoot->has( 'Bar', false, false, false ) );
+        self::assertFalse( $tnRoot->has( 'Bar', true, false, true ) );
     }
 
 
@@ -310,18 +319,30 @@ final class TrieNodeNavigatorTest extends TestCase {
         self::assertSame( 'BAZ', $root->get( 'FooQuux Baz', $r, true ) );
         self::assertSame( 'QUX', $root->get( 'FooQuux Qux', $r, true ) );
 
-        self::assertTrue( $root->has( 'Foo${Bar} Baz', true, false ) );
-        self::assertTrue( $root->has( 'Foo${Bar} Qux', true, false ) );
-        self::assertFalse( $root->has( 'Foo${Bar} Quux', true, false ) );
-        self::assertFalse( $root->has( 'FooQux', true, false ) );
+        self::assertTrue( $root->has( 'Foo${Bar} Baz', true,
+            false, false ) );
+        self::assertTrue( $root->has( 'Foo${Bar} Qux', true,
+            false, false ) );
+        self::assertFalse( $root->has( 'Foo${Bar} Quux', true,
+            false, false ) );
+        self::assertFalse( $root->has( 'FooQux', true,
+            false, false ) );
 
-        self::assertTrue( $root->has( 'Foo${Bar} Baz', true, true ) );
-        self::assertTrue( $root->has( 'Foo${Bar} Qux', true, true ) );
+        self::assertTrue( $root->has( 'Foo${Bar} Baz', true,
+            true, false ) );
+        self::assertTrue( $root->has( 'Foo${Bar} Qux', true,
+            true, false ) );
 
         # This one matches Foo = "Foo", $Bar = "${Bar} Quux"
-        self::assertTrue( $root->has( 'Foo${Bar} Quux', true, true ) );
+        self::assertTrue( $root->has( 'Foo${Bar} Quux', true,
+            true, false ) );
 
-        self::assertTrue( $root->has( 'FooQux', true, true ) );
+        self::assertTrue( $root->has( 'FooQux', true, true, false ) );
+
+        self::assertFalse( $root->has( 'Foo${Bar} BazQux', true,
+            false, false ) );
+        self::assertTrue( $root->has( 'Foo${Bar} BazQux', true,
+            false, true ) );
 
     }
 
@@ -537,6 +558,10 @@ final class TrieNodeNavigatorTest extends TestCase {
         self::assertSame( '', $tm->stRest );
         self::assertSame( [ 'Foo' => 'Foo', '$Bar' => 'Qux', 'Baz' => 'Baz' ], $tm->rMatches );
 
+        $tm = $tnRoot->matchOne( 'FooQuxBazQuux', true, true );
+        self::assertSame( 'BAZ', $tm->tn->xValue );
+        self::assertSame( 'Quux', $tm->stRest );
+        self::assertSame( [ 'Foo' => 'Foo', '$Bar' => 'Qux', 'Baz' => 'Baz' ], $tm->rMatches );
     }
 
 
