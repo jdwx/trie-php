@@ -129,7 +129,8 @@ class TrieNodeNavigator extends TrieNode {
      * @param list<TriePair> $i_rMatches
      * @return iterable<TrieMatch>
      */
-    public function match( string $i_stMatch, bool $i_bAllowVariables, bool $i_bExpandVariables, array $i_rMatches ) : iterable {
+    public function match( string $i_stMatch, bool $i_bAllowVariables, bool $i_bExpandVariables,
+                           array  $i_rMatches ) : iterable {
         # We can always match nothing and treat the rest as extra.
         if ( ! is_null( $this->xValue ) ) {
             yield new TrieMatch( $this, $i_stMatch, $i_rMatches );
@@ -206,7 +207,7 @@ class TrieNodeNavigator extends TrieNode {
             $rPaths[] = $stPath;
         }
         throw new \RuntimeException(
-            'Ambiguous variable match for "' . $i_stMatch . '" in: ' . join( ', ', $rPaths )
+            'Ambiguous variable match for "' . $i_stMatch . '" in: ' . implode( ', ', $rPaths )
         );
     }
 
