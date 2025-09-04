@@ -95,7 +95,7 @@ final class TrieNodeNavigatorTest extends TestCase {
         );
 
         $tn->addVariable( '$Bar', 'BAR', false );
-        self::expectException( LogicException::class );
+        $this->expectException( LogicException::class );
         iterator_to_array( $tn->findMatchesAfterVariable( 'FooBar' ), false );
     }
 
@@ -144,7 +144,7 @@ final class TrieNodeNavigatorTest extends TestCase {
         $tnBaz->addConstant( ' Qux', 'QUUX', false );
 
         $r = [];
-        self::expectException( RuntimeException::class );
+        $this->expectException( RuntimeException::class );
         $root->get( 'FooCorge Qux', $r, true );
     }
 
@@ -156,7 +156,7 @@ final class TrieNodeNavigatorTest extends TestCase {
         $tnFoo->addVariable( '$Baz', 'BAZ', false );
 
         $r = [];
-        self::expectException( RuntimeException::class );
+        $this->expectException( RuntimeException::class );
         $root->get( 'FooQux', $r, true );
     }
 
@@ -167,7 +167,7 @@ final class TrieNodeNavigatorTest extends TestCase {
         $tnBar = $tnFoo->addVariable( '$Bar', 'BAR', false );
         $tnBar->addVariable( '$Baz', 'BAZ', false );
         $r = [];
-        self::expectException( LogicException::class );
+        $this->expectException( LogicException::class );
         $root->get( 'Foo QuxBaz', $r, true );
     }
 
@@ -424,7 +424,7 @@ final class TrieNodeNavigatorTest extends TestCase {
         $tnBar = $tnFoo->linkConstant( 'Bar', 'BAR' );
         $tnBar->linkConstant( 'Baz', 'BAZ' );
 
-        $r = self::i2a( $tnRoot->match( 'Foo', false, false, [] ) );
+        $r = $this->i2a( $tnRoot->match( 'Foo', false, false, [] ) );
         self::assertCount( 1, $r );
 
         $tm = $r[ 0 ];
@@ -433,10 +433,10 @@ final class TrieNodeNavigatorTest extends TestCase {
         self::assertSame( 'Foo', $tm->rMatches[ 0 ]->stKey );
         self::assertSame( 'Foo', $tm->rMatches[ 0 ]->stMatch );
 
-        $r = self::i2a( $tnRoot->match( 'Foo', true, false, [] ) );
+        $r = $this->i2a( $tnRoot->match( 'Foo', true, false, [] ) );
         self::assertCount( 1, $r );
 
-        $r = self::i2a( $tnRoot->match( 'FooBar', false, true, [] ) );
+        $r = $this->i2a( $tnRoot->match( 'FooBar', false, true, [] ) );
         self::assertCount( 2, $r );
 
         $tm = $r[ 0 ];
@@ -453,7 +453,7 @@ final class TrieNodeNavigatorTest extends TestCase {
         self::assertSame( 'Bar', $tm->rMatches[ 1 ]->stKey );
         self::assertSame( 'Bar', $tm->rMatches[ 1 ]->stMatch );
 
-        $r = self::i2a( $tnRoot->match( 'FooBarBaz', true, true, [] ) );
+        $r = $this->i2a( $tnRoot->match( 'FooBarBaz', true, true, [] ) );
         self::assertCount( 3, $r );
         $tm = $r[ 0 ];
         self::assertSame( 'FOO', $tm->tn->xValue );
@@ -492,7 +492,7 @@ final class TrieNodeNavigatorTest extends TestCase {
         $tnBar = $tnFoo->addVariable( '$Bar', 'BAR', false );
         $tnBar->addConstant( 'Baz', 'BAZ', false );
 
-        $r = self::i2a( $root->match( 'Foo', true, false, [] ) );
+        $r = $this->i2a( $root->match( 'Foo', true, false, [] ) );
         self::assertCount( 1, $r );
 
         $tm = $r[ 0 ];
@@ -502,7 +502,7 @@ final class TrieNodeNavigatorTest extends TestCase {
         self::assertSame( 'Foo', $tm->rMatches[ 0 ]->stMatch );
 
         # This won't work because expansion is disabled.
-        $r = self::i2a( $root->match( 'FooQux', true, false, [] ) );
+        $r = $this->i2a( $root->match( 'FooQux', true, false, [] ) );
         self::assertCount( 1, $r );
         $tm = $r[ 0 ];
         self::assertSame( 'FOO', $tm->tn->xValue );
@@ -510,7 +510,7 @@ final class TrieNodeNavigatorTest extends TestCase {
         self::assertSame( 'Foo', $tm->rMatches[ 0 ]->stKey );
         self::assertSame( 'Foo', $tm->rMatches[ 0 ]->stMatch );
 
-        $r = self::i2a( $root->match( 'Foo$Bar', true, false, [] ) );
+        $r = $this->i2a( $root->match( 'Foo$Bar', true, false, [] ) );
         self::assertCount( 2, $r );
         $tm = $r[ 0 ];
         self::assertSame( 'FOO', $tm->tn->xValue );
@@ -535,7 +535,7 @@ final class TrieNodeNavigatorTest extends TestCase {
         $tnBar = $tnFoo->addVariable( '$Bar', 'BAR', false );
         $tnBar->addConstant( 'Baz', 'BAZ', false );
 
-        $r = self::i2a( $root->match( 'FooQux', true, true, [] ) );
+        $r = $this->i2a( $root->match( 'FooQux', true, true, [] ) );
         self::assertCount( 2, $r );
         $tm = $r[ 0 ];
         self::assertSame( 'FOO', $tm->tn->xValue );
@@ -551,7 +551,7 @@ final class TrieNodeNavigatorTest extends TestCase {
         self::assertSame( '$Bar', $tm->rMatches[ 1 ]->stKey );
         self::assertSame( 'Qux', $tm->rMatches[ 1 ]->stMatch );
 
-        $r = self::i2a(
+        $r = $this->i2a(
             $root->match( 'FooQuxBaz', true, true, [] ) );
         self::assertCount( 4, $r );
         $tm = $r[ 0 ];
@@ -634,7 +634,7 @@ final class TrieNodeNavigatorTest extends TestCase {
         $tnBar->linkConstant( 'Qux', 'QUX' );
         $tnBaz->linkConstant( 'Qux', 'QUUX' );
 
-        self::expectException( RuntimeException::class );
+        $this->expectException( RuntimeException::class );
         $tnRoot->matchOne( 'FooQuuxQux', true, true );
     }
 
@@ -678,7 +678,7 @@ final class TrieNodeNavigatorTest extends TestCase {
         self::assertSame( $tnBaz, $tnRoot->rConstants[ 'Foo' ]->rVariables[ '$Bar' ]->rConstants[ 'Baz' ] );
         self::assertSame( 'ZAB', $tnRoot->rConstants[ 'Foo' ]->rVariables[ '$Bar' ]->rConstants[ 'Baz' ]->xValue );
 
-        self::expectException( InvalidArgumentException::class );
+        $this->expectException( InvalidArgumentException::class );
         $tnRoot->set( 'Foo${Bar}Baz', 'QUX', true, false );
     }
 

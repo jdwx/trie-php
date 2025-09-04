@@ -35,7 +35,7 @@ final class TrieNodeTest extends TestCase {
         $node->addConstant( 'Foo', 'BAR', true );
         self::assertSame( 'BAR', $node->rConstants[ 'Foo' ]->xValue );
 
-        self::expectException( InvalidArgumentException::class );
+        $this->expectException( InvalidArgumentException::class );
         $node->addConstant( 'Foo', 'BAZ', false );
     }
 
@@ -60,7 +60,7 @@ final class TrieNodeTest extends TestCase {
         self::assertSame( $tn, $node->rVariables[ '$foo' ] );
         self::assertSame( $tn, $tn2 );
 
-        self::expectException( InvalidArgumentException::class );
+        $this->expectException( InvalidArgumentException::class );
         $node->addVariable( '$foo', 'BAZ', false );
     }
 
@@ -88,7 +88,7 @@ final class TrieNodeTest extends TestCase {
     public function testCast() : void {
         $node = new TrieNode( 'foo', null );
         self::assertSame( $node, TrieNode::cast( $node ) );
-        self::expectException( InvalidArgumentException::class );
+        $this->expectException( InvalidArgumentException::class );
         TrieNodeNavigator::cast( $node );
 
     }
@@ -126,7 +126,7 @@ final class TrieNodeTest extends TestCase {
         $node = new TrieNode( null, null );
         $tnFoo = $node->rConstants[ 'Foo' ] = new TrieNode( 'FOO', null );
         self::assertSame( $tnFoo, $node->constantEx( 'Foo' ) );
-        self::expectException( InvalidArgumentException::class );
+        $this->expectException( InvalidArgumentException::class );
         $node->constantEx( 'Bar' );
     }
 
@@ -198,9 +198,9 @@ final class TrieNodeTest extends TestCase {
 
 
     public function testExtractVariableNameForCustom() : void {
-        TrieNode::$fnExtractVarName = function ( $stPath ) {
+        TrieNode::$fnExtractVarName = static function ( $stPath ) {
             # Silly example, variable names may contain only digits.
-            if ( ! preg_match( '/^(\$[0-9]+)(.*)$/', $stPath, $matches ) ) {
+            if ( ! preg_match( '/^(\$\d+)(.*)$/', $stPath, $matches ) ) {
                 return [ null, $stPath ];
             }
             return [ $matches[ 1 ], $matches[ 2 ] ];
@@ -241,7 +241,7 @@ final class TrieNodeTest extends TestCase {
 
 
     public function testExtractVariableValueForCustom() : void {
-        TrieNode::$fnExtractVarValue = function ( $stVar, $stPath ) {
+        TrieNode::$fnExtractVarValue = static function ( $stVar, $stPath ) {
             # Silly example, variable values may only contain a lowercase x.
             $uPos = strspn( $stPath, 'x' );
             if ( $uPos === 0 ) {
@@ -280,7 +280,7 @@ final class TrieNodeTest extends TestCase {
 
         $node = new TrieNode( 'Foo', null );
         $node2 = new TrieNode( 'Bar', $node );
-        self::expectException( LogicException::class );
+        $this->expectException( LogicException::class );
         $node2->findParentKey();
     }
 
@@ -355,7 +355,7 @@ final class TrieNodeTest extends TestCase {
         self::assertSame( $node, $tnBar->parent );
         self::assertSame( $tnBar, $node->rConstants[ 'Bar' ] );
 
-        self::expectException( LogicException::class );
+        $this->expectException( LogicException::class );
         $node->linkConstant( 'Bar', 'BAZ' );
     }
 
@@ -372,7 +372,7 @@ final class TrieNodeTest extends TestCase {
         self::assertSame( $node, $tnBar->parent );
         self::assertSame( $tnBar, $node->rVariables[ '$Bar' ] );
 
-        self::expectException( LogicException::class );
+        $this->expectException( LogicException::class );
         $node->linkVariable( '$Bar', 'BAZ' );
     }
 
@@ -507,7 +507,7 @@ final class TrieNodeTest extends TestCase {
         $node->setValue( 'bar', true );
         self::assertSame( 'bar', $node->xValue );
 
-        self::expectException( InvalidArgumentException::class );
+        $this->expectException( InvalidArgumentException::class );
         $node->setValue( 'baz', false );
     }
 
@@ -601,7 +601,7 @@ final class TrieNodeTest extends TestCase {
         $node = new TrieNode( null, null );
         $tnFoo = $node->rVariables[ '$Foo' ] = new TrieNode( 'FOO', null );
         self::assertSame( $tnFoo, $node->variableEx( '$Foo' ) );
-        self::expectException( InvalidArgumentException::class );
+        $this->expectException( InvalidArgumentException::class );
         $node->variableEx( '$Bar' );
     }
 

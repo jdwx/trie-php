@@ -150,7 +150,7 @@ final class TrieTest extends TestCase {
         [ $trie, $root ] = $this->newTrie();
         assert( $root instanceof TrieNode );
         assert( $trie instanceof Trie );
-        self::expectException( InvalidArgumentException::class );
+        $this->expectException( InvalidArgumentException::class );
         /** @phpstan-ignore-next-line */
         $x = isset( $trie[ 1 ] );
         unset( $x );
@@ -161,7 +161,7 @@ final class TrieTest extends TestCase {
         [ $trie, $root ] = $this->newTrie();
         assert( $root instanceof TrieNode );
         assert( $trie instanceof Trie );
-        self::expectException( InvalidArgumentException::class );
+        $this->expectException( InvalidArgumentException::class );
         /** @phpstan-ignore-next-line */
         $x = $trie[ 1 ];
         unset( $x );
@@ -172,7 +172,7 @@ final class TrieTest extends TestCase {
         [ $trie, $root ] = $this->newTrie();
         assert( $root instanceof TrieNode );
         assert( $trie instanceof Trie );
-        self::expectException( InvalidArgumentException::class );
+        $this->expectException( InvalidArgumentException::class );
         /** @phpstan-ignore-next-line */
         $trie[ 1 ] = 'FOO';
     }
@@ -182,7 +182,7 @@ final class TrieTest extends TestCase {
         [ $trie, $root ] = $this->newTrie();
         assert( $root instanceof TrieNode );
         assert( $trie instanceof Trie );
-        self::expectException( InvalidArgumentException::class );
+        $this->expectException( InvalidArgumentException::class );
         /** @phpstan-ignore-next-line */
         unset( $trie[ 1 ] );
     }
@@ -211,7 +211,7 @@ final class TrieTest extends TestCase {
         assert( $trie instanceof Trie );
         $root->add( 'Foo', 'FOO', false, false );
         self::assertSame( 'FOO', $trie[ 'Foo' ] );
-        self::expectException( RuntimeException::class );
+        $this->expectException( RuntimeException::class );
         $trie->restEx();
     }
 
@@ -316,7 +316,7 @@ final class TrieTest extends TestCase {
         self::assertSame( 'BAZ', $trie[ 'FooQuxBaz' ] );
         self::assertSame( 'Qux', $trie->varEx( '$Bar' ) );
         self::assertSame( 'Corge', $trie->varEx( '$Quux', 'Corge' ) );
-        self::expectException( InvalidArgumentException::class );
+        $this->expectException( InvalidArgumentException::class );
         $trie->varEx( '$Quux' );
     }
 
